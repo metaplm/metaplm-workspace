@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String    @id @default(cuid())
+  name        String
+  website     String?
+  logoUrl     String?
+  description String?
+  linkedinUrl String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  contacts    Contact[]
+  activities  Activity[]
+  deals       Deal[]
+}
+
+model Contact {
+  id          String    @id @default(cuid())
+  firstName   String
+  lastName    String
+  title       String?
+  email       String?
+  phone       String?
+  linkedinUrl String?
+  companyId   String?
+  company     Company?  @relation(fields: [companyId], references: [id])
+  activities  Activity[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Activity {
+  id             String       @id @default(cuid())
+  type           ActivityType
+  notes          String?
+  nextActionDate DateTime?
+  companyId      String?
+  company        Company?     @relation(fields: [companyId], references: [id])
+  contactId      String?
+  contact        Contact?     @relation(fields: [contactId], references: [id])
+  dealId         String?
+  deal           Deal?        @relation(fields: [dealId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+enum ActivityType {
+  MEETING
+  CALL
+  EMAIL
+  NOTE
+}
+
+model Deal {
+  id              String      @id @default(cuid())
+  title           String
+  amount          Float       @default(0)
+  currency        Currency    @default(USD)
+  stage           DealStage   @default(LEAD)
+  expectedCloseDate DateTime?
+  companyId       String?
+  company         Company?    @relation(fields: [companyId], references: [id])
+  activities      Activity[]
+  timeEntries     TimeEntry[]
+  invoices        Invoice[]
+  expenses        Expense[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+enum DealStage {
+  LEAD
+  QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum Currency {
+  USD
+  EUR
+  TRY
+}
+
+model TimeEntry {
+  id         String   @id @default(cuid())
+  date       DateTime
+  hours      Float
+  category   String
+  billable   Boolean  @default(true)
+  notes      String?
+  dealId     String?
+  deal       Deal?    @relation(fields: [dealId], references: [id])
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        @unique
+  amount      Float
+  currency    Currency      @default(USD)
+  status      InvoiceStatus @default(DRAFT)
+  dueDate     DateTime?
+  issuedDate  DateTime      @default(now())
+  dealId      String?
+  deal        Deal?         @relation(fields: [dealId], references: [id])
+  timeEntries TimeEntry[]
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  currency    Currency @default(USD)
+  date        DateTime @default(now())
+  tags        String[]
+  dealId      String?
+  deal        Deal?    @relation(fields: [dealId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  defaultBillable Boolean @default(true)
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+}

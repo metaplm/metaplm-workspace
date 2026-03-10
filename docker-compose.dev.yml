@@ -1,0 +1,20 @@
+version: '3.9'
+
+# Development override — use with:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  app:
+    build:
+      target: deps   # Don't use production build
+    image: ~
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      DATABASE_URL: postgresql://metaplm:metaplm_secret_change_me@db:5432/metaplm
+      NODE_ENV: development
+    command: npm run dev
+    ports:
+      - "3000:3000"

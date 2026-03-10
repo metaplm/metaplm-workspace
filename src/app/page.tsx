@@ -1,0 +1,133 @@
+"use client";
+import { useEffect, useState } from "react";
+import { TrendingUp, Clock, DollarSign, AlertTriangle, Activity, CheckCircle } from "lucide-react";
+import { formatCurrency, formatHours } from "@/lib/utils";
+
+interface DashData {
+  totalPipeline: number;
+  dealCount: number;
+  monthlyHours: number;
+  billableHours: number;
+  billableRate: number;
+  monthlyExpenses: number;
+  overdueInvoices: number;
+  expectedIncome: number;
+  recentActivities: Array<{ id: string; type: string; notes: string; company?: { name: string }; contact?: { firstName: string; lastName: string }; createdAt: string }>;
+}
+
+const activityColor: Record<string, string> = {
+  MEETING: "#6366f1",
+  CALL: "#06b6d4",
+  EMAIL: "#f59e0b",
+  NOTE: "#64748b",
+};
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard").then(r => r.json()).then(d => { setData(d); setLoading(false); });
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-sm" style={{ color: "var(--muted)" }}>Loading workspace...</div>
+    </div>
+  );
+
+  const d = data!;
+
+  return (
+    <div className="p-8 space-y-8 animate-in">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold text-white">Good morning 👋</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Here's what's happening in your workspace today.</p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        {[
+          { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "USD"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
+          { label: "Hours This Month", value: formatHours(d.monthlyHours), sub: `${d.billableRate.toFixed(0)}% billable`, icon: Clock, color: "#06b6d4" },
+          { label: "Expected Income", value: formatCurrency(d.expectedIncome, "USD"), sub: "next 30 days", icon: DollarSign, color: "#10b981" },
+          { label: "Overdue Invoices", value: String(d.overdueInvoices), sub: "need attention", icon: AlertTriangle, color: d.overdueInvoices > 0 ? "#ef4444" : "#64748b" },
+        ].map((card) => (
+          <div key={card.label} className="glass rounded-xl p-5 glass-hover transition-all">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xs font-medium mb-3" style={{ color: "var(--muted)" }}>{card.label}</div>
+                <div className="text-2xl font-semibold text-white font-mono">{card.value}</div>
+                <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>{card.sub}</div>
+              </div>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${card.color}20` }}>
+                <card.icon size={16} style={{ color: card.color }} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Billability Bar */}
+      <div className="glass rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-sm font-medium text-white">Billable vs Non-Billable Hours</span>
+          <span className="text-sm font-mono" style={{ color: "var(--muted)" }}>{formatHours(d.billableHours)} / {formatHours(d.monthlyHours)}</span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${d.billableRate}%`, background: "linear-gradient(90deg, #6366f1, #8b5cf6)" }} />
+        </div>
+        <div className="flex justify-between mt-2 text-xs" style={{ color: "var(--muted)" }}>
+          <span>Billable {d.billableRate.toFixed(0)}%</span>
+          <span>Non-billable {(100 - d.billableRate).toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Recent Activities */}
+      <div className="glass rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-white mb-4">Recent Activities</h2>
+        {d.recentActivities.length === 0 ? (
+          <div className="text-sm py-8 text-center" style={{ color: "var(--muted)" }}>No activities yet. Start by adding companies in CRM.</div>
+        ) : (
+          <div className="space-y-3">
+            {d.recentActivities.map((act) => (
+              <div key={act.id} className="flex items-start gap-3">
+                <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: activityColor[act.type] || "#64748b" }} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium" style={{ color: activityColor[act.type] }}>{act.type}</span>
+                    {act.company && <span className="text-xs text-white">{act.company.name}</span>}
+                    {act.contact && <span className="text-xs" style={{ color: "var(--muted)" }}>{act.contact.firstName} {act.contact.lastName}</span>}
+                  </div>
+                  {act.notes && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{act.notes}</div>}
+                </div>
+                <div className="text-xs shrink-0" style={{ color: "var(--muted)" }}>
+                  {new Date(act.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="glass rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-white mb-4">Quick Actions</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Add Company", href: "/crm/companies", emoji: "🏢" },
+            { label: "Log Time", href: "/timesheet", emoji: "⏱️" },
+            { label: "New Invoice", href: "/finance/invoices", emoji: "📄" },
+            { label: "Add Expense", href: "/finance/expenses", emoji: "💸" },
+          ].map((q) => (
+            <a key={q.label} href={q.href} className="glass rounded-lg p-4 flex flex-col items-center gap-2 glass-hover transition-all cursor-pointer text-center">
+              <span className="text-2xl">{q.emoji}</span>
+              <span className="text-xs font-medium text-white">{q.label}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
