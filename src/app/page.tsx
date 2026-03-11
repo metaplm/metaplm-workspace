@@ -7,12 +7,19 @@ import { formatCurrency, formatHours } from "@/lib/utils";
 interface DashData {
   totalPipeline: number;
   dealCount: number;
+  dealFunnel: Array<{ stage: string; count: number; amount: number }>;
+  monthlyRevenue: number;
+  monthlyExpenses: number;
+  netPL: number;
+  totalPending: number;
+  expectedIncome: number;
+  overdueCount: number;
+  totalOverdue: number;
   monthlyHours: number;
   billableHours: number;
   billableRate: number;
-  monthlyExpenses: number;
-  overdueInvoices: number;
-  expectedIncome: number;
+  topProjects: Array<{ name: string; hours: number }>;
+  topExpenseCategories: Array<{ category: string; amount: number }>;
   activityStats: {
     total: number;
     converted: number;
@@ -95,14 +102,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
+      {/* KPI Cards - 6 cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
         {[
           { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "TRY"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
+          { label: "Monthly Revenue", value: formatCurrency(d.monthlyRevenue, "TRY"), sub: "paid invoices this month", icon: DollarSign, color: "#10b981" },
+          { label: "Monthly Expenses", value: formatCurrency(d.monthlyExpenses, "TRY"), sub: "total spent this month", icon: AlertTriangle, color: "#f59e0b" },
+          { label: "Net P&L", value: formatCurrency(d.netPL, "TRY"), sub: "revenue - expenses", icon: CheckCircle, color: d.netPL >= 0 ? "#10b981" : "#ef4444" },
           { label: "Hours This Month", value: formatHours(d.monthlyHours), sub: `${d.billableRate.toFixed(0)}% billable`, icon: Clock, color: "#06b6d4" },
-          { label: "Expected Income", value: formatCurrency(d.expectedIncome, "TRY"), sub: "next 30 days", icon: DollarSign, color: "#10b981" },
-          { label: "Overdue Invoices", value: String(d.overdueInvoices), sub: "need attention", icon: AlertTriangle, color: d.overdueInvoices > 0 ? "#ef4444" : "#64748b" },
-          { label: "Activity → Deal", value: `${d.activityStats.conversionRate.toFixed(0)}%`, sub: `${d.activityStats.converted}/${d.activityStats.total} converted`, icon: CheckCircle, color: "#a5b4fc" },
+          { label: "Overdue Invoices", value: `${d.overdueCount}`, sub: formatCurrency(d.totalOverdue, "TRY"), icon: AlertTriangle, color: d.overdueCount > 0 ? "#ef4444" : "#64748b" },
         ].map((card) => (
           <div key={card.label} className="glass rounded-xl p-5 glass-hover transition-all">
             <div className="flex items-start justify-between">
@@ -119,32 +127,94 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Activity Funnel Summary */}
-      <div className="glass rounded-xl p-4 md:p-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 md:mb-2 gap-2">
-          <span className="text-sm font-semibold text-white">Sales Funnel Snapshot</span>
-          <span className="text-xs" style={{ color: "var(--muted)" }}>Upcoming next actions: {d.activityStats.upcomingNextActions}</span>
+      {/* Deal Stage Funnel */}
+      <div className="glass rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-white">Deal Stage Funnel</h2>
+          <span className="text-xs" style={{ color: "var(--muted)" }}>{d.dealCount} active deals</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-          {[{
-            title: "Total Activities",
-            value: d.activityStats.total,
-            sub: "Meetings, calls, notes",
-          }, {
-            title: "Converted to Deals",
-            value: d.activityStats.converted,
-            sub: "Pipeline-ready",
-          }, {
-            title: "Conversion Rate",
-            value: `${d.activityStats.conversionRate.toFixed(1)}%`,
-            sub: "Activity → Deal",
-          }].map(card => (
-            <div key={card.title} className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
-              <div className="text-xs" style={{ color: "var(--muted)" }}>{card.title}</div>
-              <div className="text-xl font-semibold text-white mt-1">{card.value}</div>
-              <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{card.sub}</div>
+        <div className="space-y-3">
+          {d.dealFunnel.map((stage, idx) => {
+            const maxAmount = Math.max(...d.dealFunnel.map(s => s.amount), 1);
+            const widthPercent = (stage.amount / maxAmount) * 100;
+            const colors = ["#64748b", "#6366f1", "#8b5cf6", "#f59e0b"];
+            return (
+              <div key={stage.stage}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span style={{ color: "var(--muted)" }}>{stage.stage}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-medium">{stage.count} deals</span>
+                    <span className="font-mono" style={{ color: colors[idx] }}>{formatCurrency(stage.amount, "TRY")}</span>
+                  </div>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${widthPercent}%`, background: colors[idx] }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Expense & Timesheet Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Expense Breakdown */}
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white">Top Expenses</h2>
+            <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>{formatCurrency(d.monthlyExpenses, "TRY")}</span>
+          </div>
+          {d.topExpenseCategories.length === 0 ? (
+            <div className="text-xs text-center py-4" style={{ color: "var(--muted)" }}>No expenses this month</div>
+          ) : (
+            <div className="space-y-3">
+              {d.topExpenseCategories.map((cat, idx) => {
+                const percent = d.monthlyExpenses > 0 ? (cat.amount / d.monthlyExpenses) * 100 : 0;
+                const colors = ["#ef4444", "#f59e0b", "#10b981"];
+                const labels: Record<string, string> = { ARAC: "Vehicle", YEMEK: "Food", MUHASEBE: "Accounting", DEMIRBAS: "Equipment", GENEL: "General", VERGI: "Tax", KIRA: "Rent" };
+                return (
+                  <div key={cat.category}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span style={{ color: "var(--muted)" }}>{labels[cat.category] || cat.category}</span>
+                      <span className="font-mono text-white">{formatCurrency(cat.amount, "TRY")}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${percent}%`, background: colors[idx] }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
+        </div>
+
+        {/* Timesheet by Project */}
+        <div className="glass rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white">Hours by Project</h2>
+            <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>{formatHours(d.monthlyHours)} total</span>
+          </div>
+          {d.topProjects.length === 0 ? (
+            <div className="text-xs text-center py-4" style={{ color: "var(--muted)" }}>No time logged this month</div>
+          ) : (
+            <div className="space-y-3">
+              {d.topProjects.map((proj, idx) => {
+                const percent = d.monthlyHours > 0 ? (proj.hours / d.monthlyHours) * 100 : 0;
+                const colors = ["#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b"];
+                return (
+                  <div key={proj.name}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-white truncate" style={{ maxWidth: "60%" }}>{proj.name}</span>
+                      <span className="font-mono" style={{ color: "var(--muted)" }}>{formatHours(proj.hours)}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${percent}%`, background: colors[idx] }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -170,7 +240,7 @@ export default function Dashboard() {
           <div className="text-sm py-8 text-center" style={{ color: "var(--muted)" }}>No activities yet. Start by adding companies in CRM.</div>
         ) : (
           <div className="space-y-3">
-            {d.recentActivities.map((act) => (
+            {d.recentActivities.slice(0, 5).map((act) => (
               <div key={act.id} className="flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: activityColor[act.type] || "#64748b" }} />
                 <div className="flex-1 min-w-0">
