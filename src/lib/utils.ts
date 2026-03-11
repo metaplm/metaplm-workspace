@@ -29,7 +29,8 @@ export function formatHours(hours: number): string {
 }
 
 export function formatCurrency(amount: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
+  const locale = currency === "TRY" ? "tr-TR" : currency === "EUR" ? "de-DE" : "en-US";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: 0,
