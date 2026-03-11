@@ -112,11 +112,11 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Pending</div>
-          <div className="text-xl font-semibold font-mono" style={{ color: "#fbbf24" }}>{formatCurrency(totalPending, "USD")}</div>
+          <div className="text-xl font-semibold font-mono" style={{ color: "#fbbf24" }}>{formatCurrency(totalPending, "TRY")}</div>
         </div>
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Collected</div>
-          <div className="text-xl font-semibold font-mono" style={{ color: "#34d399" }}>{formatCurrency(totalPaid, "USD")}</div>
+          <div className="text-xl font-semibold font-mono" style={{ color: "#34d399" }}>{formatCurrency(totalPaid, "TRY")}</div>
         </div>
         <div className="glass rounded-xl p-4 flex items-center gap-3">
           {overdue.length > 0 ? <AlertCircle size={16} style={{ color: "#f87171" }} /> : <CheckCircle size={16} style={{ color: "#34d399" }} />}

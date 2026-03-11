@@ -151,7 +151,7 @@ export default function FinanceReportsPage() {
           <div className="glass rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <h4 className="text-sm font-semibold text-white">Invoices ({filteredInvoices.length})</h4>
-              <span className="text-xs" style={{ color: "var(--muted)" }}>{formatCurrency(filteredInvoices.reduce((s, i) => s + i.amount, 0), "USD")}</span>
+              <span className="text-xs" style={{ color: "var(--muted)" }}>{formatCurrency(filteredInvoices.reduce((s, i) => s + i.amount, 0), "TRY")}</span>
             </div>
             <div className="max-h-72 overflow-auto text-xs">
               <table className="w-full">
@@ -215,7 +215,7 @@ export default function FinanceReportsPage() {
           <div className="glass rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <h4 className="text-sm font-semibold text-white">Expenses ({filteredExpenses.length})</h4>
-              <span className="text-xs" style={{ color: "var(--muted)" }}>{formatCurrency(filteredExpenses.reduce((s, e) => s + e.amount, 0), "USD")}</span>
+              <span className="text-xs" style={{ color: "var(--muted)" }}>{formatCurrency(filteredExpenses.reduce((s, e) => s + e.amount, 0), "TRY")}</span>
             </div>
             <div className="max-h-72 overflow-auto text-xs">
               <table className="w-full">

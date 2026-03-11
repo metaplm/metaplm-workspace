@@ -78,7 +78,7 @@ export default function FinanceDashboard() {
           <div key={p.name} className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
             <span style={{ color: "var(--muted)" }}>{p.name}:</span>
-            <span className="font-mono text-white">{formatCurrency(p.value, "USD")}</span>
+            <span className="font-mono text-white">{formatCurrency(p.value, "TRY")}</span>
           </div>
         ))}
       </div>
@@ -95,10 +95,10 @@ export default function FinanceDashboard() {
       {/* KPIs */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Revenue", value: formatCurrency(totalIncome, "USD"), color: "#34d399" },
-          { label: "Total Expenses", value: formatCurrency(totalExpenses, "USD"), color: "#f87171" },
-          { label: "Net Profit", value: formatCurrency(netProfit, "USD"), color: netProfit >= 0 ? "#34d399" : "#f87171" },
-          { label: "Pending Revenue", value: formatCurrency(pendingRevenue, "USD"), color: "#fbbf24" },
+          { label: "Total Revenue", value: formatCurrency(totalIncome, "TRY"), color: "#34d399" },
+          { label: "Total Expenses", value: formatCurrency(totalExpenses, "TRY"), color: "#f87171" },
+          { label: "Net Profit", value: formatCurrency(netProfit, "TRY"), color: netProfit >= 0 ? "#34d399" : "#f87171" },
+          { label: "Pending Revenue", value: formatCurrency(pendingRevenue, "TRY"), color: "#fbbf24" },
         ].map(k => (
           <div key={k.label} className="glass rounded-xl p-4">
             <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>{k.label}</div>
@@ -114,7 +114,7 @@ export default function FinanceDashboard() {
           <BarChart data={cashFlowData} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
             <XAxis dataKey="label" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v/1000).toFixed(0)}k`} />
+            <YAxis tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₺${(v/1000).toFixed(0)}k`} />
             <Tooltip content={<CustomTooltip />} />
             <Bar dataKey="income" name="Income" fill="#6366f1" radius={[4, 4, 0, 0]} />
             <Bar dataKey="expense" name="Expenses" fill="#ef4444" radius={[4, 4, 0, 0]} opacity={0.7} />
@@ -173,15 +173,15 @@ export default function FinanceDashboard() {
         <div className="flex items-center gap-8 text-sm">
           <div>
             <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>Output VAT (on revenue)</div>
-            <div className="font-mono font-semibold" style={{ color: "#fbbf24" }}>{formatCurrency(totalIncome * 0.2, "USD")}</div>
+            <div className="font-mono font-semibold" style={{ color: "#fbbf24" }}>{formatCurrency(totalIncome * 0.2, "TRY")}</div>
           </div>
           <div>
             <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>Input VAT (on expenses)</div>
-            <div className="font-mono font-semibold" style={{ color: "#34d399" }}>{formatCurrency(totalExpenses * 0.2, "USD")}</div>
+            <div className="font-mono font-semibold" style={{ color: "#34d399" }}>{formatCurrency(totalExpenses * 0.2, "TRY")}</div>
           </div>
           <div>
             <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>Net VAT Payable</div>
-            <div className="font-mono font-semibold text-white">{formatCurrency((totalIncome - totalExpenses) * 0.2, "USD")}</div>
+            <div className="font-mono font-semibold text-white">{formatCurrency((totalIncome - totalExpenses) * 0.2, "TRY")}</div>
           </div>
           <div className="text-xs" style={{ color: "var(--muted)" }}>* Estimate only. Consult your accountant.</div>
         </div>
