@@ -28,7 +28,8 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      router.push("/");
+      // Use window.location for hard redirect to ensure cookie is set
+      window.location.href = "/";
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {

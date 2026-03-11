@@ -108,6 +108,15 @@ export default function Sidebar() {
         >
           <SunMoon size={14} /> {theme === "dark" ? "Light Mode" : "Dark Mode"}
         </button>
+        <button
+          className="w-full flex items-center gap-2 justify-center btn-ghost text-xs"
+          onClick={async () => {
+            await fetch("/api/auth/logout", { method: "POST" });
+            window.location.href = "/login";
+          }}
+        >
+          Logout
+        </button>
         <div className="font-mono">v1.0.0</div>
       </div>
     </aside>
