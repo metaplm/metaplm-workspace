@@ -94,10 +94,7 @@ export async function transitionDeal(dealId: string, newStage: DealStage) {
 
   const updated = await prisma.deal.update({
     where: { id: dealId },
-    data:  {
-      stage: newStage,
-      wonAt: isNowWon && !wasAlreadyWon ? new Date() : deal.wonAt,
-    },
+    data:  { stage: newStage },
     include: { company: true },
   })
 
@@ -111,7 +108,7 @@ export async function getActiveProjects() {
   return prisma.deal.findMany({
     where:   { stage: DealStage.WON },
     include: { company: { select: { name: true, logoUrl: true } } },
-    orderBy: { wonAt: 'desc' },
+    orderBy: { updatedAt: 'desc' },
   })
 }
 
@@ -161,14 +158,7 @@ export async function generateDraftInvoice({
     return acc
   }, {})
 
-  const lineItems = Object.entries(grouped).map(([category, { hours }]) => ({
-    description: `${category} — ${formatHours(hours, 'hours')} @ ${hourlyRate} ${currency}/hr`,
-    quantity:    hours,
-    unitPrice:   hourlyRate,
-    amount:      hours * hourlyRate,
-  }))
-
-  const totalAmount = lineItems.reduce((s, li) => s + li.amount, 0)
+  const totalAmount = Object.values(grouped).reduce((sum, { hours }) => sum + hours * hourlyRate, 0)
 
   // Generate invoice number: INV-YYYYMM-XXXX
   const count = await prisma.invoice.count()
@@ -181,11 +171,14 @@ export async function generateDraftInvoice({
       currency,
       status:    'DRAFT',
       dueDate,
-      companyId,
       dealId:    dealId ?? null,
-      lineItems: { create: lineItems },
     },
-    include: { lineItems: true, company: true },
+    include: { deal: { include: { company: true } }, timeEntries: true },
+  })
+
+  await prisma.timeEntry.updateMany({
+    where: { id: { in: entries.map((entry) => entry.id) } },
+    data: { invoiceId: invoice.id },
   })
 
   return invoice

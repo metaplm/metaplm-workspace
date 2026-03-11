@@ -6,6 +6,32 @@ export interface ScrapedCompany {
   website?: string;
 }
 
+function decodeHtmlEntities(text: string): string {
+  if (!text) return text;
+  const entities: Record<string, string> = {
+    '&#x27;': "'",
+    '&#39;': "'",
+    '&apos;': "'",
+    '&quot;': '"',
+    '&#34;': '"',
+    '&amp;': '&',
+    '&#38;': '&',
+    '&lt;': '<',
+    '&#60;': '<',
+    '&gt;': '>',
+    '&#62;': '>',
+    '&nbsp;': ' ',
+    '&#160;': ' ',
+    '&hellip;': '...',
+    '&#8230;': '...',
+    '&ndash;': '–',
+    '&#8211;': '–',
+    '&mdash;': '—',
+    '&#8212;': '—',
+  };
+  return text.replace(/&#?\w+;|&\w+;/g, (match) => entities[match] || match);
+}
+
 export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany> {
   const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
   const hostname = new URL(normalizedUrl).hostname;
@@ -29,14 +55,14 @@ export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany>
       html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
       html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
-    if (descMatch) result.description = descMatch[1].trim().slice(0, 500);
+    if (descMatch) result.description = decodeHtmlEntities(descMatch[1].trim().slice(0, 500));
 
     // Extract company name from og:site_name or title
     const siteNameMatch =
       html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<title>([^<]+)<\/title>/i);
     if (siteNameMatch) {
-      result.name = siteNameMatch[1].trim().split(/[|\-–]/)[0].trim().slice(0, 100);
+      result.name = decodeHtmlEntities(siteNameMatch[1].trim().split(/[|\-–]/)[0].trim().slice(0, 100));
     }
 
     // Extract logo - og:image or favicon

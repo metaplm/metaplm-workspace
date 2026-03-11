@@ -1,7 +1,8 @@
 
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, X, DollarSign, Calendar } from "lucide-react";
+import { Plus, TrendingUp, X, DollarSign, Calendar, Pencil, Trash2 } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
 
 interface Deal {
@@ -27,6 +28,8 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState("ALL");
@@ -42,11 +45,41 @@ export default function DealsPage() {
     const data = { ...form, amount: parseFloat(form.amount) || 0 };
     if (!data.companyId) delete (data as any).companyId;
     try {
-      await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (editingId) {
+        await fetch(`/api/deals/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      } else {
+        await fetch("/api/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      }
       setShowModal(false);
       setForm({ ...EMPTY });
+      setEditingId(null);
       load();
     } finally { setSaving(false); }
+  };
+
+  const deleteDeal = async (id: string) => {
+    await fetch(`/api/deals/${id}`, { method: "DELETE" });
+    setShowDeleteConfirm(null);
+    load();
+  };
+
+  const openEdit = (deal: Deal) => {
+    setForm({
+      title: deal.title,
+      amount: String(deal.amount),
+      currency: deal.currency,
+      stage: deal.stage,
+      expectedCloseDate: deal.expectedCloseDate ? deal.expectedCloseDate.slice(0, 10) : "",
+      companyId: deal.company?.id || "",
+    });
+    setEditingId(deal.id);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   const updateStage = async (id: string, stage: string) => {
@@ -66,7 +99,7 @@ export default function DealsPage() {
           <h1 className="text-xl font-semibold text-white">Deals & Pipeline</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{deals.length} total deals</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowModal(true)}>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> New Deal
         </button>
       </div>
@@ -105,7 +138,11 @@ export default function DealsPage() {
       {/* Deals List */}
       <div className="space-y-3">
         {filtered.map(deal => (
-          <div key={deal.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
+          <div key={deal.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group">
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <button onClick={() => openEdit(deal)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+              <button onClick={() => setShowDeleteConfirm(deal.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+            </div>
             <div className="w-2 h-10 rounded-full shrink-0" style={{ background: STAGE_COLORS[deal.stage] }} />
             <div className="flex-1 min-w-0">
               <div className="font-medium text-white text-sm">{deal.title}</div>
@@ -134,11 +171,11 @@ export default function DealsPage() {
         </div>
       )}
 
-      {showModal && (
+      {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">New Deal</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Deal" : "New Deal"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
             <div className="space-y-3">
@@ -180,11 +217,24 @@ export default function DealsPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.title}>{saving ? "Saving..." : "Create Deal"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.title}>{saving ? "Saving..." : (editingId ? "Update" : "Create Deal")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
+
+      {showDeleteConfirm && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-semibold text-white mb-2">Delete Deal?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone. All time entries and activities linked to this deal will remain but lose their deal association.</p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteDeal(showDeleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
     </div>
   );
 }

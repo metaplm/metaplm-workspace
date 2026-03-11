@@ -1,7 +1,8 @@
 
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, FileText, X, AlertCircle, CheckCircle, Clock } from "lucide-react";
+import { Plus, FileText, X, AlertCircle, CheckCircle, Clock, Pencil, Trash2 } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
 
 interface Invoice {
@@ -31,6 +32,8 @@ export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
 
@@ -45,11 +48,41 @@ export default function InvoicesPage() {
     const data = { ...form, amount: parseFloat(form.amount) || 0 };
     if (!data.dealId) delete (data as any).dealId;
     try {
-      await fetch("/api/invoices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (editingId) {
+        await fetch(`/api/invoices/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      } else {
+        await fetch("/api/invoices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      }
       setShowModal(false);
       setForm({ ...EMPTY });
+      setEditingId(null);
       load();
     } finally { setSaving(false); }
+  };
+
+  const deleteInvoice = async (id: string) => {
+    await fetch(`/api/invoices/${id}`, { method: "DELETE" });
+    setShowDeleteConfirm(null);
+    load();
+  };
+
+  const openEdit = (invoice: Invoice) => {
+    setForm({
+      amount: String(invoice.amount),
+      currency: invoice.currency,
+      status: invoice.status,
+      dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : "",
+      dealId: invoice.deal?.id || "",
+      notes: invoice.notes || "",
+    });
+    setEditingId(invoice.id);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -70,7 +103,7 @@ export default function InvoicesPage() {
           <h1 className="text-xl font-semibold text-white">Invoices</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{invoices.length} invoices total</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowModal(true)}>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> New Invoice
         </button>
       </div>
@@ -101,11 +134,15 @@ export default function InvoicesPage() {
           const Icon = st.icon;
           const isOverdue = inv.status !== "PAID" && inv.dueDate && new Date(inv.dueDate) < now;
           return (
-            <div key={inv.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
+            <div key={inv.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group">
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <button onClick={() => openEdit(inv)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+                <button onClick={() => setShowDeleteConfirm(inv.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+              </div>
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(99,102,241,0.15)" }}>
                 <FileText size={15} style={{ color: "#6366f1" }} />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-20">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm font-semibold text-white">{inv.number}</span>
                   {isOverdue && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(239,68,68,0.2)", color: "#f87171" }}>OVERDUE</span>}
@@ -139,11 +176,11 @@ export default function InvoicesPage() {
         </div>
       )}
 
-      {showModal && (
+      {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">New Invoice</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Invoice" : "New Invoice"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
             <div className="space-y-3">
@@ -185,11 +222,24 @@ export default function InvoicesPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.amount}>{saving ? "Saving..." : "Create Invoice"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.amount}>{saving ? "Saving..." : (editingId ? "Update" : "Create Invoice")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
+
+      {showDeleteConfirm && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-semibold text-white mb-2">Delete Invoice?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteInvoice(showDeleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
     </div>
   );
 }

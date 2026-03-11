@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { TrendingUp, Clock, DollarSign, AlertTriangle, Activity, CheckCircle } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/utils";
 
@@ -12,6 +13,12 @@ interface DashData {
   monthlyExpenses: number;
   overdueInvoices: number;
   expectedIncome: number;
+  activityStats: {
+    total: number;
+    converted: number;
+    conversionRate: number;
+    upcomingNextActions: number;
+  };
   recentActivities: Array<{ id: string; type: string; notes: string; company?: { name: string }; contact?: { firstName: string; lastName: string }; createdAt: string }>;
 }
 
@@ -25,9 +32,12 @@ const activityColor: Record<string, string> = {
 export default function Dashboard() {
   const [data, setData] = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     fetch("/api/dashboard").then(r => r.json()).then(d => { setData(d); setLoading(false); });
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   if (loading) return (
@@ -41,18 +51,26 @@ export default function Dashboard() {
   return (
     <div className="p-8 space-y-8 animate-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Good morning 👋</h1>
-        <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>Here's what's happening in your workspace today.</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={56} height={56} className="rounded-lg" />
+          <span className="text-2xl font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</span>
+        </div>
+        <div className="text-sm font-mono" style={{ color: "var(--muted)" }}>
+          {currentTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          {" · "}
+          {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         {[
           { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "USD"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
           { label: "Hours This Month", value: formatHours(d.monthlyHours), sub: `${d.billableRate.toFixed(0)}% billable`, icon: Clock, color: "#06b6d4" },
           { label: "Expected Income", value: formatCurrency(d.expectedIncome, "USD"), sub: "next 30 days", icon: DollarSign, color: "#10b981" },
           { label: "Overdue Invoices", value: String(d.overdueInvoices), sub: "need attention", icon: AlertTriangle, color: d.overdueInvoices > 0 ? "#ef4444" : "#64748b" },
+          { label: "Activity → Deal", value: `${d.activityStats.conversionRate.toFixed(0)}%`, sub: `${d.activityStats.converted}/${d.activityStats.total} converted`, icon: CheckCircle, color: "#a5b4fc" },
         ].map((card) => (
           <div key={card.label} className="glass rounded-xl p-5 glass-hover transition-all">
             <div className="flex items-start justify-between">
@@ -67,6 +85,35 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Activity Funnel Summary */}
+      <div className="glass rounded-xl p-5">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-semibold text-white">Sales Funnel Snapshot</span>
+          <span className="text-xs" style={{ color: "var(--muted)" }}>Upcoming next actions: {d.activityStats.upcomingNextActions}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {[{
+            title: "Total Activities",
+            value: d.activityStats.total,
+            sub: "Meetings, calls, notes",
+          }, {
+            title: "Converted to Deals",
+            value: d.activityStats.converted,
+            sub: "Pipeline-ready",
+          }, {
+            title: "Conversion Rate",
+            value: `${d.activityStats.conversionRate.toFixed(1)}%`,
+            sub: "Activity → Deal",
+          }].map(card => (
+            <div key={card.title} className="rounded-xl p-4" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>{card.title}</div>
+              <div className="text-xl font-semibold text-white mt-1">{card.value}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{card.sub}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Billability Bar */}

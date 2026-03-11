@@ -1,7 +1,7 @@
 
 "use client";
 import Link from "next/link";
-import { Building2, Users, TrendingUp, ArrowRight } from "lucide-react";
+import { Building2, Users, TrendingUp, ArrowRight, Activity } from "lucide-react";
 
 export default function CRMPage() {
   return (
@@ -10,10 +10,11 @@ export default function CRMPage() {
         <h1 className="text-xl font-semibold text-white">CRM</h1>
         <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>Manage your relationships and pipeline</p>
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         {[
           { label: "Companies", href: "/crm/companies", icon: Building2, desc: "Manage accounts and scrape company info automatically" },
           { label: "Contacts", href: "/crm/contacts", icon: Users, desc: "Track your people with LinkedIn integration" },
+          { label: "Activities", href: "/crm/activities", icon: Activity, desc: "Log meetings, calls and notes — convert them to deals" },
           { label: "Deals", href: "/crm/deals", icon: TrendingUp, desc: "Pipeline management — Won deals become billable projects" },
         ].map(item => (
           <Link key={item.href} href={item.href} className="glass rounded-xl p-6 glass-hover flex flex-col gap-4">

@@ -1,7 +1,7 @@
-
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User } from "lucide-react";
+import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2 } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Contact {
   id: string;
@@ -22,6 +22,8 @@ export default function ContactsPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
 
@@ -36,11 +38,42 @@ export default function ContactsPage() {
     const data = { ...form };
     if (!data.companyId) delete (data as any).companyId;
     try {
-      await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (editingId) {
+        await fetch(`/api/contacts/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      } else {
+        await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      }
       setShowModal(false);
       setForm({ ...EMPTY });
+      setEditingId(null);
       load();
     } finally { setSaving(false); }
+  };
+
+  const deleteContact = async (id: string) => {
+    await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+    setShowDeleteConfirm(null);
+    load();
+  };
+
+  const openEdit = (contact: Contact) => {
+    setForm({
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      title: contact.title || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+      linkedinUrl: contact.linkedinUrl || "",
+      companyId: contact.company?.id || "",
+    });
+    setEditingId(contact.id);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   const filtered = contacts.filter(c =>
@@ -54,7 +87,7 @@ export default function ContactsPage() {
           <h1 className="text-xl font-semibold text-white">Contacts</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{contacts.length} contacts</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowModal(true)}>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> Add Contact
         </button>
       </div>
@@ -66,12 +99,16 @@ export default function ContactsPage() {
 
       <div className="grid grid-cols-3 gap-4">
         {filtered.map(c => (
-          <div key={c.id} className="glass rounded-xl p-5 glass-hover">
+          <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+              <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+            </div>
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
                 {c.firstName[0]}{c.lastName[0]}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-16">
                 <div className="font-medium text-white text-sm">{c.firstName} {c.lastName}</div>
                 {c.title && <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{c.title}</div>}
                 {c.company && (
@@ -103,11 +140,11 @@ export default function ContactsPage() {
         </div>
       )}
 
-      {showModal && (
+      {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">Add Contact</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Contact" : "Add Contact"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
             <div className="space-y-3">
@@ -137,11 +174,24 @@ export default function ContactsPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.firstName || !form.lastName}>{saving ? "Saving..." : "Add Contact"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.firstName || !form.lastName}>{saving ? "Saving..." : (editingId ? "Update" : "Add Contact")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
+
+      {showDeleteConfirm && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-semibold text-white mb-2">Delete Contact?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteContact(showDeleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
     </div>
   );
 }

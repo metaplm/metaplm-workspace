@@ -1,11 +1,28 @@
-
 "use client";
-import { useEffect, useState } from "react";
+
+import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend, PieChart, Pie, Cell } from "recharts";
 import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
 
-interface Invoice { id: string; amount: number; currency: string; status: string; dueDate?: string; issuedDate: string; }
-interface Expense { id: string; amount: number; currency: string; date: string; tags: string[]; }
+interface Invoice {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  dueDate?: string;
+  issuedDate: string;
+  deal?: { id: string; title: string; company?: { name: string } };
+}
+interface Expense {
+  id: string;
+  amount: number;
+  currency: string;
+  date: string;
+  tags: string[];
+  description: string;
+  deal?: { id: string; title: string; company?: { name: string } };
+}
 
 export default function FinanceDashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -162,6 +179,13 @@ export default function FinanceDashboard() {
           </div>
           <div className="text-xs" style={{ color: "var(--muted)" }}>* Estimate only. Consult your accountant.</div>
         </div>
+      </div>
+      <div className="glass rounded-2xl p-5 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Detailed Finance Reports moved</h3>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>Filtreli fatura/gider raporları yeni sayfada.</p>
+        </div>
+        <Link href="/finance/reports" className="btn-primary text-xs">Go to Reports</Link>
       </div>
     </div>
   );

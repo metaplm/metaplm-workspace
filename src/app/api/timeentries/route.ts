@@ -7,13 +7,31 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year");
   const month = searchParams.get("month");
   const dealId = searchParams.get("dealId");
+  const category = searchParams.get("category");
+  const customer = searchParams.get("customer");
+  const billable = searchParams.get("billable");
+  const start = searchParams.get("start");
+  const end = searchParams.get("end");
 
   const where: Record<string, unknown> = {};
   if (dealId) where.dealId = dealId;
-  if (year && month) {
-    const start = new Date(parseInt(year), parseInt(month) - 1, 1);
-    const end = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
-    where.date = { gte: start, lte: end };
+  if (category) where.category = category;
+  if (customer) {
+    where.customerName = { contains: customer, mode: "insensitive" };
+  }
+  if (billable === "true" || billable === "false") {
+    where.billable = billable === "true";
+  }
+
+  if (start || end) {
+    const range: Record<string, Date> = {};
+    if (start) range.gte = new Date(start);
+    if (end) range.lte = new Date(end);
+    where.date = range;
+  } else if (year && month) {
+    const from = new Date(parseInt(year), parseInt(month) - 1, 1);
+    const to = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+    where.date = { gte: from, lte: to };
   }
 
   const entries = await prisma.timeEntry.findMany({

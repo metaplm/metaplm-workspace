@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2 } from "lucide-react";
+import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2, Pencil, Trash2 } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Company {
   id: string;
@@ -19,6 +20,8 @@ export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scraping, setScraping] = useState(false);
@@ -40,12 +43,41 @@ export default function CompaniesPage() {
   const save = async () => {
     setSaving(true);
     try {
-      await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      if (editingId) {
+        await fetch(`/api/companies/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      } else {
+        await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      }
       setShowModal(false);
       setForm({ ...EMPTY });
+      setEditingId(null);
       setScrapeUrl("");
       load();
     } finally { setSaving(false); }
+  };
+
+  const deleteCompany = async (id: string) => {
+    await fetch(`/api/companies/${id}`, { method: "DELETE" });
+    setShowDeleteConfirm(null);
+    load();
+  };
+
+  const openEdit = (company: Company) => {
+    setForm({
+      name: company.name,
+      website: company.website || "",
+      logoUrl: company.logoUrl || "",
+      description: company.description || "",
+      linkedinUrl: company.linkedinUrl || "",
+    });
+    setEditingId(company.id);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   const filtered = companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -57,7 +89,7 @@ export default function CompaniesPage() {
           <h1 className="text-xl font-semibold text-white">Companies</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{companies.length} companies</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowModal(true)}>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> Add Company
         </button>
       </div>
@@ -69,12 +101,16 @@ export default function CompaniesPage() {
 
       <div className="grid grid-cols-3 gap-4">
         {filtered.map(c => (
-          <div key={c.id} className="glass rounded-xl p-5 glass-hover">
+          <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+              <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+            </div>
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
                 {c.logoUrl ? <img src={c.logoUrl} alt={c.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Building2 size={18} style={{ color: "var(--muted)" }} />}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-16">
                 <div className="font-medium text-white text-sm truncate">{c.name}</div>
                 {c.website && <div className="text-xs mt-0.5 flex items-center gap-1" style={{ color: "var(--muted)" }}><Globe size={10} />{c.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</div>}
               </div>
@@ -96,11 +132,11 @@ export default function CompaniesPage() {
         </div>
       )}
 
-      {showModal && (
+      {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-lg p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-lg p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">Add Company</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Company" : "Add Company"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
 
@@ -129,11 +165,24 @@ export default function CompaniesPage() {
             {form.logoUrl && <div className="mt-3 flex items-center gap-2"><img src={form.logoUrl} alt="" className="w-8 h-8 object-contain rounded" /><span className="text-xs" style={{ color: "var(--muted)" }}>Logo preview</span></div>}
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.name}>{saving ? "Saving..." : "Add Company"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.name}>{saving ? "Saving..." : (editingId ? "Update" : "Add Company")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
+
+      {showDeleteConfirm && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-semibold text-white mb-2">Delete Company?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone. All associated contacts, deals, and activities will remain but lose their company link.</p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteCompany(showDeleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
     </div>
   );
 }

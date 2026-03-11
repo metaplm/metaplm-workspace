@@ -1,9 +1,11 @@
 
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, BarChart3, Pencil } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
+import Link from "next/link";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday, isSameDay } from "date-fns";
-import { formatHours, getDayStatus, getStatusColor, parseTimeInput } from "@/lib/utils";
+import { formatHours, getDayStatus, parseTimeInput } from "@/lib/utils";
 
 interface TimeEntry {
   id: string;
@@ -12,6 +14,7 @@ interface TimeEntry {
   category: string;
   billable: boolean;
   notes?: string;
+  customerName?: string;
   deal?: { id: string; title: string; company?: { name: string } };
 }
 interface Category { id: string; name: string; defaultBillable: boolean; color: string; }
@@ -24,7 +27,8 @@ export default function TimesheetPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ value: "", unit: "hours", category: "", billable: true, notes: "", dealId: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState({ value: "", unit: "hours", category: "", billable: true, notes: "", dealId: "", customerName: "" });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
@@ -37,13 +41,30 @@ export default function TimesheetPage() {
 
   useEffect(() => { load(); }, [load]);
 
+
   const getDayEntries = (date: Date) => entries.filter(e => isSameDay(new Date(e.date), date));
   const getDayHours = (date: Date) => getDayEntries(date).reduce((s, e) => s + e.hours, 0);
 
   const openModal = (day: Date) => {
     setSelectedDay(day);
     const defCat = categories[0];
-    setForm({ value: "", unit: "hours", category: defCat?.name || "", billable: defCat?.defaultBillable ?? true, notes: "", dealId: "" });
+    setForm({ value: "", unit: "hours", category: defCat?.name || "", billable: defCat?.defaultBillable ?? true, notes: "", dealId: "", customerName: "" });
+    setEditingId(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (entry: TimeEntry) => {
+    setSelectedDay(new Date(entry.date));
+    setForm({
+      value: String(entry.hours),
+      unit: "hours",
+      category: entry.category,
+      billable: entry.billable,
+      notes: entry.notes || "",
+      dealId: entry.deal?.id || "",
+      customerName: entry.customerName || "",
+    });
+    setEditingId(entry.id);
     setShowModal(true);
   };
 
@@ -56,20 +77,31 @@ export default function TimesheetPage() {
     if (!selectedDay || !form.value || !form.category) return;
     setSaving(true);
     try {
-      await fetch("/api/timeentries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          value: form.value,
-          unit: form.unit,
-          category: form.category,
-          billable: form.billable,
-          notes: form.notes,
-          dealId: form.dealId || null,
-          date: format(selectedDay, "yyyy-MM-dd"),
-        }),
-      });
+      const payload = {
+        value: form.value,
+        unit: form.unit,
+        category: form.category,
+        billable: form.billable,
+        notes: form.notes,
+        dealId: form.dealId || null,
+        customerName: form.customerName?.trim() || null,
+        date: format(selectedDay, "yyyy-MM-dd"),
+      };
+      if (editingId) {
+        await fetch(`/api/timeentries/${editingId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch("/api/timeentries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
       setShowModal(false);
+      setEditingId(null);
       load();
     } finally { setSaving(false); }
   };
@@ -184,7 +216,7 @@ export default function TimesheetPage() {
                 <div className="space-y-0.5">
                   {dayEntries.slice(0, 2).map(e => (
                     <div key={e.id} className="text-xs truncate rounded px-1 py-0.5" style={{ background: e.billable ? "rgba(99,102,241,0.2)" : "rgba(100,116,139,0.2)", color: e.billable ? "#a5b4fc" : "#94a3b8", fontSize: "10px" }}>
-                      {e.category}
+                      {e.customerName || e.category}
                     </div>
                   ))}
                   {dayEntries.length > 2 && <div className="text-xs" style={{ color: "var(--muted)", fontSize: "10px" }}>+{dayEntries.length - 2} more</div>}
@@ -202,13 +234,24 @@ export default function TimesheetPage() {
         </div>
       </div>
 
+      {/* Reports redirect */}
+      <div className="glass rounded-2xl p-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Detailed Reports moved</h2>
+          <p className="text-xs" style={{ color: "var(--muted)" }}>Raporlar artık ayrı bir sayfada.</p>
+        </div>
+        <Link href="/timesheet/reports" className="btn-primary flex items-center gap-2 text-xs">
+          <BarChart3 size={14} /> Go to Reports
+        </Link>
+      </div>
+
       {/* Log Time Modal */}
-      {showModal && selectedDay && (
+      {showModal && selectedDay && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-base font-semibold text-white">Log Time</h2>
+                <h2 className="text-base font-semibold text-white">{editingId ? "Edit Time Entry" : "Log Time"}</h2>
                 <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{format(selectedDay, "EEEE, MMMM d, yyyy")}</div>
               </div>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
@@ -220,11 +263,19 @@ export default function TimesheetPage() {
                 <div className="text-xs font-medium" style={{ color: "var(--muted)" }}>Logged today:</div>
                 {getDayEntries(selectedDay).map(e => (
                   <div key={e.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <span className="text-white">{e.category} — {formatHours(e.hours)}</span>
+                    <span className="text-white">{e.customerName || e.category} — {formatHours(e.hours)}</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: e.billable ? "rgba(99,102,241,0.2)", color: "#a5b4fc" : "rgba(100,116,139,0.2)", color: "#94a3b8" }}>
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={
+                          e.billable
+                            ? { background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }
+                            : { background: "rgba(100,116,139,0.2)", color: "#94a3b8" }
+                        }
+                      >
                         {e.billable ? "Billable" : "Non-billable"}
                       </span>
+                      <button onClick={() => openEdit(e)} className="hover:text-blue-400" style={{ color: "var(--muted)" }}><Pencil size={12} /></button>
                       <button onClick={() => deleteEntry(e.id)} className="hover:text-red-400" style={{ color: "var(--muted)" }}><X size={12} /></button>
                     </div>
                   </div>
@@ -260,6 +311,17 @@ export default function TimesheetPage() {
                 </select>
               </div>
 
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Customer Name</label>
+                <input
+                  type="text"
+                  value={form.customerName}
+                  onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))}
+                  placeholder="e.g. Acme Corp"
+                  className="text-sm"
+                />
+              </div>
+
               <div className="flex items-center justify-between glass rounded-lg px-3 py-2.5">
                 <span className="text-sm text-white">Billable</span>
                 <button onClick={() => setForm(f => ({ ...f, billable: !f.billable }))} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: form.billable ? "#6366f1" : "rgba(255,255,255,0.1)" }}>
@@ -269,7 +331,19 @@ export default function TimesheetPage() {
 
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Link to Project</label>
-                <select value={form.dealId} onChange={e => setForm(f => ({ ...f, dealId: e.target.value }))} className="text-sm">
+                <select
+                  value={form.dealId}
+                  onChange={e => {
+                    const value = e.target.value;
+                    const deal = deals.find(d => d.id === value);
+                    setForm(f => ({
+                      ...f,
+                      dealId: value,
+                      customerName: f.customerName || deal?.company?.name || deal?.title || "",
+                    }));
+                  }}
+                  className="text-sm"
+                >
                   <option value="">— No Project —</option>
                   {deals.map(d => <option key={d.id} value={d.id}>{d.title}{d.company ? ` (${d.company.name})` : ""}</option>)}
                 </select>
@@ -283,11 +357,11 @@ export default function TimesheetPage() {
 
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.value || !form.category}>{saving ? "Saving..." : "Log Time"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.value || !form.category}>{saving ? "Saving..." : (editingId ? "Update" : "Log Time")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
     </div>
   );
 }

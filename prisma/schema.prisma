@@ -97,6 +97,7 @@ model TimeEntry {
   category   String
   billable   Boolean  @default(true)
   notes      String?
+  customerName String?
   dealId     String?
   deal       Deal?    @relation(fields: [dealId], references: [id])
   invoiceId  String?

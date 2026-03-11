@@ -3,20 +3,92 @@
 @tailwind utilities;
 
 :root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --surface2: #16161f;
-  --border: rgba(255,255,255,0.08);
-  --accent: #6366f1;
-  --accent2: #8b5cf6;
-  --text: #e2e8f0;
-  --muted: #64748b;
+  --bg: #011627;
+  --surface: rgba(3, 20, 36, 0.92);
+  --surface2: rgba(7, 32, 52, 0.9);
+  --border: rgba(168, 209, 229, 0.18);
+  --accent: #00d2d3;
+  --accent2: #22d3ee;
+  --accent-dark: #0267a0;
+  --text: #e6f4ff;
+  --muted: #7abbda;
 }
+
+[data-theme="light"] {
+  --bg: #f0f5fa;
+  --surface: #ffffff;
+  --surface2: #e4eef8;
+  --border: rgba(1, 70, 112, 0.18);
+  --accent: #014570;
+  --accent2: #0267a0;
+  --accent-dark: #00d2d3;
+  --text: #0f172a;
+  --muted: #3b4a5c;
+}
+
+[data-theme="light"] body {
+  background: radial-gradient(circle at top left, rgba(0, 210, 211, 0.08), transparent 45%),
+              radial-gradient(circle at 20% 60%, rgba(34, 211, 238, 0.05), transparent 40%),
+              var(--bg);
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(1, 70, 112, 0.15);
+  box-shadow: 0 4px 24px rgba(1, 70, 112, 0.10);
+}
+
+[data-theme="light"] .text-white { color: var(--text) !important; }
+[data-theme="light"] .text-slate-400 { color: var(--muted) !important; }
+[data-theme="light"] .text-slate-500 { color: var(--muted) !important; }
+[data-theme="light"] .hover\:text-white:hover { color: var(--accent) !important; }
+[data-theme="light"] .hover\:text-red-400:hover { color: #dc2626 !important; }
+[data-theme="light"] .hover\:text-blue-400:hover { color: #2563eb !important; }
+
+[data-theme="light"] .glass-hover:hover {
+  background: rgba(2, 103, 160, 0.07);
+  border-color: rgba(1, 69, 112, 0.3);
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background: #ffffff !important;
+  border: 1px solid rgba(1, 70, 112, 0.22) !important;
+  color: var(--text) !important;
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] select:focus,
+[data-theme="light"] textarea:focus {
+  border-color: var(--accent2) !important;
+  box-shadow: 0 0 0 3px rgba(2, 103, 160, 0.15);
+}
+
+[data-theme="light"] select option { background: #ffffff; color: var(--text); }
+
+[data-theme="light"] .btn-ghost {
+  background: rgba(1, 70, 112, 0.06);
+  border: 1px solid rgba(1, 70, 112, 0.18);
+  color: var(--text);
+}
+
+[data-theme="light"] .btn-ghost:hover {
+  background: rgba(1, 70, 112, 0.12);
+  border-color: rgba(1, 70, 112, 0.3);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(1, 70, 112, 0.15); }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: rgba(1, 70, 112, 0.25); }
+
+[data-theme="light"] .stage-badge { color: var(--text); }
 
 * { box-sizing: border-box; }
 
 body {
-  background: var(--bg);
+  background: radial-gradient(circle at top left, rgba(34, 211, 238, 0.15), transparent 45%),
+              radial-gradient(circle at 20% 60%, rgba(0, 210, 211, 0.1), transparent 40%),
+              var(--bg);
   color: var(--text);
   font-family: 'IBM Plex Sans', 'SF Pro Display', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -28,19 +100,20 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 .glass {
-  background: rgba(255,255,255,0.04);
+  background: linear-gradient(135deg, rgba(1, 22, 39, 0.9), rgba(2, 32, 53, 0.85));
   border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
 }
 
 .glass-hover:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.14);
+  background: rgba(34, 211, 238, 0.06);
+  border-color: rgba(168, 209, 229, 0.4);
 }
 
 input, select, textarea {
-  background: rgba(255,255,255,0.05) !important;
-  border: 1px solid rgba(255,255,255,0.1) !important;
+  background: rgba(0, 210, 211, 0.04) !important;
+  border: 1px solid rgba(168, 209, 229, 0.25) !important;
   color: var(--text) !important;
   border-radius: 8px;
   padding: 8px 12px;
@@ -51,10 +124,10 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+  box-shadow: 0 0 0 3px rgba(0, 210, 211, 0.2);
 }
 
-select option { background: #1e1e2e; color: var(--text); }
+select option { background: #031628; color: var(--text); }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -71,8 +144,8 @@ select option { background: #1e1e2e; color: var(--text); }
 .btn-primary:active { transform: translateY(0); }
 
 .btn-ghost {
-  background: transparent;
-  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(168, 209, 229, 0.35);
   color: var(--text);
   padding: 8px 16px;
   border-radius: 8px;
@@ -81,7 +154,7 @@ select option { background: #1e1e2e; color: var(--text); }
   transition: all 0.2s;
 }
 
-.btn-ghost:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.2); }
+.btn-ghost:hover { background: rgba(2, 103, 160, 0.35); border-color: rgba(34, 211, 238, 0.5); }
 
 .stage-badge {
   font-size: 11px;

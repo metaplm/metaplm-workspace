@@ -1,7 +1,8 @@
 
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Receipt, X, Hash, Tag } from "lucide-react";
+import { Plus, Receipt, X, Hash, Tag, Pencil, Trash2 } from "lucide-react";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
 
 interface Expense {
@@ -22,6 +23,8 @@ export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -45,12 +48,42 @@ export default function ExpensesPage() {
     const data = { ...form, amount: parseFloat(form.amount) || 0 };
     if (!data.dealId) delete (data as any).dealId;
     try {
-      await fetch("/api/expenses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (editingId) {
+        await fetch(`/api/expenses/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      } else {
+        await fetch("/api/expenses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      }
       setShowModal(false);
       setForm({ ...EMPTY });
+      setEditingId(null);
       setTagInput("");
       load();
     } finally { setSaving(false); }
+  };
+
+  const deleteExpense = async (id: string) => {
+    await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+    setShowDeleteConfirm(null);
+    load();
+  };
+
+  const openEdit = (expense: Expense) => {
+    setForm({
+      description: expense.description,
+      amount: String(expense.amount),
+      currency: expense.currency,
+      date: expense.date.slice(0, 10),
+      tags: [...expense.tags],
+      dealId: expense.deal?.id || "",
+    });
+    setEditingId(expense.id);
+    setShowModal(true);
+  };
+
+  const openAdd = () => {
+    setForm({ ...EMPTY });
+    setEditingId(null);
+    setShowModal(true);
   };
 
   const totalThisMonth = expenses.filter(e => {
@@ -70,7 +103,7 @@ export default function ExpensesPage() {
           <h1 className="text-xl font-semibold text-white">Expenses</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{expenses.length} expenses logged</p>
         </div>
-        <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowModal(true)}>
+        <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> Log Expense
         </button>
       </div>
@@ -98,7 +131,11 @@ export default function ExpensesPage() {
       {/* Expense List */}
       <div className="space-y-3">
         {expenses.map(exp => (
-          <div key={exp.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
+          <div key={exp.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group">
+            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+              <button onClick={() => setShowDeleteConfirm(exp.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+            </div>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(239,68,68,0.1)" }}>
               <Receipt size={15} style={{ color: "#f87171" }} />
             </div>
@@ -129,11 +166,11 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {showModal && (
+      {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in">
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">Log Expense</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Expense" : "Log Expense"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
             <div className="space-y-3">
@@ -196,11 +233,24 @@ export default function ExpensesPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.description || !form.amount}>{saving ? "Saving..." : "Log Expense"}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.description || !form.amount}>{saving ? "Saving..." : (editingId ? "Update" : "Log Expense")}</button>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>)}
+
+      {showDeleteConfirm && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+            <h2 className="text-base font-semibold text-white mb-2">Delete Expense?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteExpense(showDeleteConfirm)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
     </div>
   );
 }

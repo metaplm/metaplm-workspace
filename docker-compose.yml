@@ -28,12 +28,12 @@ services:
     volumes:
       - .:/app
     environment:
-      DATABASE_URL: postgresql://metaplm:metaplm_secret_change_me@db:5432/metaplm
+      DATABASE_URL: 'postgresql://neondb_owner:npg_2VUwDL8cuiQJ@ep-ancient-smoke-a47qtuuh-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
     command: >
       sh -c "
         apk add --no-cache openssl &&
         npm install --frozen-lockfile &&
-        npx prisma migrate deploy &&
+        npx prisma db push &&
         npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts
       "
     depends_on:
@@ -48,9 +48,9 @@ services:
     container_name: metaplm-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
-      DATABASE_URL: postgresql://metaplm:metaplm_secret_change_me@db:5432/metaplm
+      DATABASE_URL: 'postgresql://neondb_owner:npg_2VUwDL8cuiQJ@ep-ancient-smoke-a47qtuuh-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
       NODE_ENV:     production
     depends_on:
       db:
