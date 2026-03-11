@@ -30,11 +30,13 @@ async function main() {
 
   // Seed admin user
   await prisma.user.upsert({
-    where: { email: 'mirac' },
-    update: {},
+    where: { email: 'mirac.cicek@meta-plm.com' },
+    update: {
+      passwordHash: hashPassword('M352458c!'),
+    },
     create: {
-      email: 'mirac',
-      passwordHash: hashPassword('352458'),
+      email: 'mirac.cicek@meta-plm.com',
+      passwordHash: hashPassword('M352458c!'),
     },
   })
 
