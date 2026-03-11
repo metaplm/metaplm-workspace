@@ -151,17 +151,26 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum ExpenseCategory {
+  ARAC
+  YEMEK
+  MUHASEBE
+  DEMIRBAS
+  GENEL
+  VERGI
+}
+
 model Expense {
-  id          String   @id @default(cuid())
-  description String
+  id          String          @id @default(cuid())
+  description String?
   amount      Float
-  currency    Currency @default(USD)
-  date        DateTime @default(now())
-  tags        String[]
+  currency    Currency        @default(TRY)
+  category    ExpenseCategory @default(GENEL)
+  date        DateTime        @default(now())
   dealId      String?
-  deal        Deal?    @relation(fields: [dealId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  deal        Deal?           @relation(fields: [dealId], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 }
 
 model Category {

@@ -1,23 +1,30 @@
 
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, Receipt, X, Hash, Tag, Pencil, Trash2 } from "lucide-react";
+import { Plus, Receipt, X, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
 
 interface Expense {
   id: string;
-  description: string;
+  description?: string;
   amount: number;
   currency: string;
+  category: string;
   date: string;
-  tags: string[];
   deal?: { id: string; title: string; company?: { name: string } };
 }
 interface Deal { id: string; title: string; }
 
-const QUICK_TAGS = ["software", "travel", "food", "equipment", "office", "marketing", "cloud", "tools"];
-const EMPTY = { description: "", amount: "", currency: "USD", date: new Date().toISOString().slice(0, 10), tags: [] as string[], dealId: "" };
+const CATEGORIES = [
+  { value: "ARAC", label: "Araç" },
+  { value: "YEMEK", label: "Yemek" },
+  { value: "MUHASEBE", label: "Muhasebe" },
+  { value: "DEMIRBAS", label: "Demirbaş" },
+  { value: "GENEL", label: "Genel" },
+  { value: "VERGI", label: "Vergi" },
+];
+const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: new Date().toISOString().slice(0, 10), dealId: "" };
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -26,7 +33,6 @@ export default function ExpensesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
-  const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -35,13 +41,6 @@ export default function ExpensesPage() {
   };
   useEffect(() => { load(); }, []);
 
-  const addTag = (tag: string) => {
-    const clean = tag.replace("#", "").trim().toLowerCase();
-    if (clean && !form.tags.includes(clean)) {
-      setForm(f => ({ ...f, tags: [...f.tags, clean] }));
-    }
-    setTagInput("");
-  };
 
   const save = async () => {
     setSaving(true);
@@ -56,7 +55,6 @@ export default function ExpensesPage() {
       setShowModal(false);
       setForm({ ...EMPTY });
       setEditingId(null);
-      setTagInput("");
       load();
     } finally { setSaving(false); }
   };
@@ -69,11 +67,11 @@ export default function ExpensesPage() {
 
   const openEdit = (expense: Expense) => {
     setForm({
-      description: expense.description,
+      description: expense.description || "",
       amount: String(expense.amount),
       currency: expense.currency,
+      category: expense.category,
       date: expense.date.slice(0, 10),
-      tags: [...expense.tags],
       dealId: expense.deal?.id || "",
     });
     setEditingId(expense.id);
@@ -86,22 +84,37 @@ export default function ExpensesPage() {
     setShowModal(true);
   };
 
-  const totalThisMonth = expenses.filter(e => {
+  // Calculate totals per currency
+  const totals = (expenses || []).reduce((acc, e) => {
+    if (!acc[e.currency]) acc[e.currency] = 0;
+    acc[e.currency] += e.amount;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const totalThisMonth = (expenses || []).filter(e => {
     const d = new Date(e.date);
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).reduce((s, e) => s + e.amount, 0);
+  }).reduce((acc, e) => {
+    if (!acc[e.currency]) acc[e.currency] = 0;
+    acc[e.currency] += e.amount;
+    return acc;
+  }, {} as Record<string, number>);
 
-  // Tag distribution
-  const tagCounts: Record<string, number> = {};
-  expenses.forEach(e => e.tags.forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+  // Category distribution
+  const categoryCounts: Record<string, number> = {};
+  (expenses || []).forEach(e => { 
+    if (e.category) {
+      categoryCounts[e.category] = (categoryCounts[e.category] || 0) + 1; 
+    }
+  });
 
   return (
     <div className="p-8 space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-white">Expenses</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{expenses.length} expenses logged</p>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{(expenses || []).length} expenses logged</p>
         </div>
         <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
           <Plus size={15} /> Log Expense
@@ -112,17 +125,27 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>This Month</div>
-          <div className="text-xl font-semibold font-mono" style={{ color: "#f87171" }}>{formatCurrency(totalThisMonth, "USD")}</div>
+          <div className="space-y-0.5">
+            {Object.entries(totalThisMonth).map(([curr, amt]) => (
+              <div key={curr} className="text-lg font-semibold font-mono" style={{ color: "#f87171" }}>{formatCurrency(amt, curr)}</div>
+            ))}
+            {Object.keys(totalThisMonth).length === 0 && <div className="text-lg font-semibold font-mono" style={{ color: "var(--muted)" }}>₺0</div>}
+          </div>
         </div>
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Total Logged</div>
-          <div className="text-xl font-semibold font-mono text-white">{formatCurrency(expenses.reduce((s, e) => s + e.amount, 0), "USD")}</div>
+          <div className="space-y-0.5">
+            {Object.entries(totals).map(([curr, amt]) => (
+              <div key={curr} className="text-lg font-semibold font-mono text-white">{formatCurrency(amt, curr)}</div>
+            ))}
+            {Object.keys(totals).length === 0 && <div className="text-lg font-semibold font-mono" style={{ color: "var(--muted)" }}>₺0</div>}
+          </div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Top Tags</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Top Categories</div>
           <div className="flex gap-1 flex-wrap mt-1">
-            {Object.entries(tagCounts).sort(([,a],[,b]) => b - a).slice(0, 3).map(([tag]) => (
-              <span key={tag} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>#{tag}</span>
+            {Object.entries(categoryCounts).sort(([,a],[,b]) => b - a).slice(0, 3).map(([cat]) => (
+              <span key={cat} className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>{CATEGORIES.find(c => c.value === cat)?.label || cat}</span>
             ))}
           </div>
         </div>
@@ -130,7 +153,7 @@ export default function ExpensesPage() {
 
       {/* Expense List */}
       <div className="space-y-3">
-        {expenses.map(exp => (
+        {(expenses || []).map(exp => (
           <div key={exp.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group">
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
               <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
@@ -140,13 +163,11 @@ export default function ExpensesPage() {
               <Receipt size={15} style={{ color: "#f87171" }} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-medium text-white text-sm">{exp.description}</div>
+              <div className="font-medium text-white text-sm">{exp.description || "—"}</div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {exp.tags.map(t => (
-                  <span key={t} className="text-xs px-1.5 py-0.5 rounded flex items-center gap-0.5" style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}>
-                    <Hash size={9} />{ t}
-                  </span>
-                ))}
+                <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}>
+                  {CATEGORIES.find(c => c.value === exp.category)?.label || exp.category}
+                </span>
                 {exp.deal && <span className="text-xs" style={{ color: "var(--muted)" }}>· {exp.deal.title}</span>}
               </div>
             </div>
@@ -162,7 +183,7 @@ export default function ExpensesPage() {
         <div className="glass rounded-xl p-12 text-center">
           <Receipt size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">No expenses yet</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>Use #hashtags for quick categorization</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>Start logging your expenses with categories</div>
         </div>
       )}
 
@@ -175,8 +196,8 @@ export default function ExpensesPage() {
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Description *</label>
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="AWS monthly bill" className="text-sm" />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Description</label>
+                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Açıklama (opsiyonel)" className="text-sm" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -186,41 +207,21 @@ export default function ExpensesPage() {
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} className="text-sm">
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="TRY">TRY</option>
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
                   </select>
                 </div>
               </div>
               <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Category *</label>
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="text-sm">
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Date</label>
                 <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="text-sm" />
-              </div>
-              
-              {/* Tags */}
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Tags (use #hashtags)</label>
-                <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); addTag(tagInput); } }} placeholder="#software, #travel..." className="text-sm" />
-                {/* Quick tags */}
-                <div className="flex gap-1.5 mt-2 flex-wrap">
-                  {QUICK_TAGS.map(t => (
-                    <button key={t} onClick={() => addTag(t)} className="text-xs px-2 py-1 rounded transition-all" style={{
-                      background: form.tags.includes(t) ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.05)",
-                      color: form.tags.includes(t) ? "#a5b4fc" : "var(--muted)",
-                      border: `1px solid ${form.tags.includes(t) ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`,
-                    }}>#{t}</button>
-                  ))}
-                </div>
-                {form.tags.length > 0 && (
-                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                    {form.tags.map(t => (
-                      <span key={t} className="flex items-center gap-1 text-xs px-2 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>
-                        #{t}
-                        <button onClick={() => setForm(f => ({ ...f, tags: f.tags.filter(x => x !== t) }))}><X size={10} /></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div>
@@ -233,7 +234,7 @@ export default function ExpensesPage() {
             </div>
             <div className="flex gap-3 mt-5">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.description || !form.amount}>{saving ? "Saving..." : (editingId ? "Update" : "Log Expense")}</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.amount}>{saving ? "Saving..." : (editingId ? "Update" : "Log Expense")}</button>
             </div>
           </div>
         </div>

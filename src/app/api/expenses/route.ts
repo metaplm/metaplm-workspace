@@ -11,9 +11,19 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const data: Record<string, unknown> = { ...body };
+  
+  // Convert date string to Date object
+  data.date = body.date ? new Date(body.date) : new Date();
+  
+  // Convert empty description to null
+  if (data.description === "") {
+    data.description = null;
+  }
+  
   const expense = await prisma.expense.create({
-    data: { ...body, date: body.date ? new Date(body.date) : new Date() },
-    include: { deal: true },
+    data: data as any,
+    include: { deal: { include: { company: true } } },
   });
   return NextResponse.json(expense, { status: 201 });
 }

@@ -194,7 +194,7 @@ export async function getCashFlowProjection() {
     }),
     prisma.expense.findMany({
       where: { date: { gte: today, lte: in30 } },
-      select: { amount: true, currency: true, date: true, tags: true },
+      select: { amount: true, currency: true, date: true, category: true },
     }),
   ])
 
