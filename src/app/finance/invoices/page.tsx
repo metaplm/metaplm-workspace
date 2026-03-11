@@ -10,6 +10,8 @@ interface Invoice {
   number: string;
   amount: number;
   currency: string;
+  vatRate: number;
+  vatAmount: number;
   status: string;
   dueDate?: string;
   issuedDate: string;
@@ -26,7 +28,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; icon: any }> = {
   CANCELLED: { bg: "rgba(100,116,139,0.15)", text: "#64748b", icon: X },
 };
 
-const EMPTY = { amount: "", currency: "TRY", status: "DRAFT", dueDate: "", dealId: "", notes: "" };
+const EMPTY = { amount: "", currency: "TRY", vatRate: "20", status: "DRAFT", dueDate: "", dealId: "", notes: "" };
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -45,7 +47,9 @@ export default function InvoicesPage() {
 
   const save = async () => {
     setSaving(true);
-    const data = { ...form, amount: parseFloat(form.amount) || 0 };
+    const amt = parseFloat(form.amount) || 0;
+    const vr = parseInt(form.vatRate) || 0;
+    const data = { ...form, amount: amt, vatRate: vr, vatAmount: +(amt * vr / 100).toFixed(2) };
     if (!data.dealId) delete (data as any).dealId;
     try {
       if (editingId) {
@@ -70,6 +74,7 @@ export default function InvoicesPage() {
     setForm({
       amount: String(invoice.amount),
       currency: invoice.currency,
+      vatRate: String(invoice.vatRate ?? 20),
       status: invoice.status,
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : "",
       dealId: invoice.deal?.id || "",
@@ -154,7 +159,7 @@ export default function InvoicesPage() {
               </div>
               <div className="text-right">
                 <div className="font-semibold font-mono text-sm text-white">{formatCurrency(inv.amount, inv.currency)}</div>
-                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{inv.currency}</div>
+                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>KDV %{inv.vatRate ?? 20}: {formatCurrency(inv.vatAmount ?? inv.amount * (inv.vatRate ?? 20) / 100, inv.currency)}</div>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: st.bg }}>
                 <Icon size={12} style={{ color: st.text }} />
@@ -196,6 +201,21 @@ export default function InvoicesPage() {
                     <option value="USD">USD ($)</option>
                     <option value="EUR">EUR (€)</option>
                   </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>KDV Oranı</label>
+                  <select value={form.vatRate} onChange={e => setForm(f => ({ ...f, vatRate: e.target.value }))} className="text-sm">
+                    <option value="20">%20</option>
+                    <option value="0">%0 (KDV Hariç)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>KDV Tutarı</label>
+                  <div className="text-sm font-mono py-2 px-3 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", color: "var(--muted)" }}>
+                    {formatCurrency((parseFloat(form.amount) || 0) * (parseInt(form.vatRate) || 0) / 100, form.currency)}
+                  </div>
                 </div>
               </div>
               <div>

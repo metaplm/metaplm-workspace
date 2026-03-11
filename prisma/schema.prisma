@@ -131,7 +131,8 @@ model Invoice {
   id          String        @id @default(cuid())
   number      String        @unique
   amount      Float
-  currency    Currency      @default(USD)
+  currency    Currency      @default(TRY)
+  vatRate     Int           @default(20)
   status      InvoiceStatus @default(DRAFT)
   dueDate     DateTime?
   issuedDate  DateTime      @default(now())
@@ -139,6 +140,7 @@ model Invoice {
   deal        Deal?         @relation(fields: [dealId], references: [id])
   timeEntries TimeEntry[]
   notes       String?
+  vatAmount   Float         @default(0)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 }
