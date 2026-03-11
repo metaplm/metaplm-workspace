@@ -146,7 +146,7 @@ export default function CRMReportsPage() {
           sub: "in date range",
         }, {
           label: "Avg Deal Size",
-          value: `$${avgDealSize}`,
+          value: `₺${avgDealSize.toLocaleString()}`,
           sub: "filtered set",
         }].map(card => (
           <div key={card.label} className="glass rounded-xl p-4">
@@ -267,7 +267,7 @@ export default function CRMReportsPage() {
                 <input type="text" placeholder="Search" value={dealFilters.company} onChange={e => setDealFilters(f => ({ ...f, company: e.target.value }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Min Amount ($)</label>
+                <label style={{ color: "var(--muted)" }}>Min Amount (₺)</label>
                 <input type="number" min={0} value={dealFilters.minAmount} onChange={e => setDealFilters(f => ({ ...f, minAmount: e.target.value }))} />
               </div>
             </div>
@@ -298,7 +298,7 @@ export default function CRMReportsPage() {
                       <td className="py-2 px-4">{deal.title}</td>
                       <td className="py-2 px-4">{deal.company?.name ?? "-"}</td>
                       <td className="py-2 px-4">{deal.stage}</td>
-                      <td className="py-2 px-4 font-mono text-white">${deal.amount.toLocaleString()}</td>
+                      <td className="py-2 px-4 font-mono text-white">₺{deal.amount.toLocaleString()}</td>
                     </tr>
                   ))}
                   {!filteredDeals.length && !loading && (
