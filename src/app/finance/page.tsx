@@ -59,7 +59,7 @@ export default function FinanceDashboard() {
 
   const CATEGORY_LABELS: Record<string, string> = {
     ARAC: 'Araç', YEMEK: 'Yemek', MUHASEBE: 'Muhasebe',
-    DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi',
+    DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi', KIRA: 'Kira',
   };
 
   const COLORS = ["#6366f1", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444"];

@@ -23,6 +23,7 @@ const CATEGORIES = [
   { value: "DEMIRBAS", label: "Demirbaş" },
   { value: "GENEL", label: "Genel" },
   { value: "VERGI", label: "Vergi" },
+  { value: "KIRA", label: "Kira" },
 ];
 const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: new Date().toISOString().slice(0, 10), dealId: "" };
 

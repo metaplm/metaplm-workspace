@@ -158,6 +158,7 @@ enum ExpenseCategory {
   DEMIRBAS
   GENEL
   VERGI
+  KIRA
 }
 
 model Expense {
