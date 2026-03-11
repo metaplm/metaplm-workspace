@@ -17,11 +17,16 @@ interface Expense {
   id: string;
   amount: number;
   currency: string;
+  category: string;
   date: string;
-  tags: string[];
-  description: string;
+  description?: string;
   deal?: { id: string; title: string; company?: { name: string } };
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ARAC: 'Araç', YEMEK: 'Yemek', MUHASEBE: 'Muhasebe',
+  DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi',
+};
 
 type DateRange = { start: string; end: string };
 
@@ -35,7 +40,7 @@ export default function FinanceReportsPage() {
     dates: defaultRange(),
   });
   const [expenseFilters, setExpenseFilters] = useState({
-    tag: "",
+    category: "ALL",
     minAmount: "",
     dates: defaultRange(),
   });
@@ -57,7 +62,7 @@ export default function FinanceReportsPage() {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
-      if (expenseFilters.tag && !exp.tags.some(tag => tag.includes(expenseFilters.tag.toLowerCase()))) return false;
+      if (expenseFilters.category !== "ALL" && exp.category !== expenseFilters.category) return false;
       if (expenseFilters.minAmount && exp.amount < Number(expenseFilters.minAmount)) return false;
       if (!isWithinRange(exp.date, expenseFilters.dates)) return false;
       return true;
@@ -85,13 +90,13 @@ export default function FinanceReportsPage() {
     if (!filteredExpenses.length) return;
     downloadCSV(
       `finance-expenses-${expenseFilters.dates.start}-${expenseFilters.dates.end}`,
-      ["Date", "Description", "Amount", "Currency", "Tags", "Project"],
+      ["Date", "Description", "Amount", "Currency", "Category", "Project"],
       filteredExpenses.map(exp => [
         new Date(exp.date).toLocaleDateString(),
-        exp.description,
+        exp.description || "-",
         exp.amount,
         exp.currency,
-        exp.tags.join(" | "),
+        CATEGORY_LABELS[exp.category] || exp.category,
         exp.deal?.title || "-",
       ])
     );
@@ -195,8 +200,11 @@ export default function FinanceReportsPage() {
                 <input type="date" value={expenseFilters.dates.end} onChange={e => setExpenseFilters(f => ({ ...f, dates: { ...f.dates, end: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Tag contains</label>
-                <input type="text" placeholder="#software" value={expenseFilters.tag} onChange={e => setExpenseFilters(f => ({ ...f, tag: e.target.value }))} />
+                <label style={{ color: "var(--muted)" }}>Category</label>
+                <select value={expenseFilters.category} onChange={e => setExpenseFilters(f => ({ ...f, category: e.target.value }))}>
+                  <option value="ALL">All</option>
+                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
               </div>
               <div>
                 <label style={{ color: "var(--muted)" }}>Min Amount</label>
@@ -216,16 +224,16 @@ export default function FinanceReportsPage() {
                     <th className="text-left py-2 px-4">Date</th>
                     <th className="text-left py-2 px-4">Description</th>
                     <th className="text-left py-2 px-4">Amount</th>
-                    <th className="text-left py-2 px-4">Tags</th>
+                    <th className="text-left py-2 px-4">Category</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredExpenses.map(exp => (
                     <tr key={exp.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td className="py-2 px-4 text-white">{new Date(exp.date).toLocaleDateString()}</td>
-                      <td className="py-2 px-4">{exp.description}</td>
+                      <td className="py-2 px-4">{exp.description || "—"}</td>
                       <td className="py-2 px-4 font-mono text-white">-{formatCurrency(exp.amount, exp.currency)}</td>
-                      <td className="py-2 px-4">{exp.tags.map(tag => `#${tag}`).join(", ") || "-"}</td>
+                      <td className="py-2 px-4">{CATEGORY_LABELS[exp.category] || exp.category}</td>
                     </tr>
                   ))}
                   {!filteredExpenses.length && (

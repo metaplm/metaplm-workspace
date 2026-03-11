@@ -18,9 +18,9 @@ interface Expense {
   id: string;
   amount: number;
   currency: string;
+  category: string;
   date: string;
-  tags: string[];
-  description: string;
+  description?: string;
   deal?: { id: string; title: string; company?: { name: string } };
 }
 
@@ -49,12 +49,18 @@ export default function FinanceDashboard() {
     return { label, income, expense, net: income - expense };
   });
 
-  const tagBreakdown = Object.entries(
+  const categoryBreakdown = Object.entries(
     expenses.reduce((acc, e) => {
-      e.tags.forEach(t => { acc[t] = (acc[t] || 0) + e.amount; });
+      const cat = e.category || 'GENEL';
+      acc[cat] = (acc[cat] || 0) + e.amount;
       return acc;
     }, {} as Record<string, number>)
   ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 6);
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    ARAC: 'Araç', YEMEK: 'Yemek', MUHASEBE: 'Muhasebe',
+    DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi',
+  };
 
   const COLORS = ["#6366f1", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ef4444"];
 
@@ -134,25 +140,25 @@ export default function FinanceDashboard() {
         {/* Expense by Tag */}
         <div className="glass rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-white mb-4">Expense by Category</h2>
-          {tagBreakdown.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-sm" style={{ color: "var(--muted)" }}>No tagged expenses yet</div>
+          {categoryBreakdown.length === 0 ? (
+            <div className="flex items-center justify-center h-40 text-sm" style={{ color: "var(--muted)" }}>No expenses yet</div>
           ) : (
             <div className="flex items-center gap-4">
               <ResponsiveContainer width="50%" height={160}>
                 <PieChart>
-                  <Pie data={tagBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" strokeWidth={0}>
-                    {tagBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  <Pie data={categoryBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" strokeWidth={0}>
+                    {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 space-y-2">
-                {tagBreakdown.map((t, i) => (
+                {categoryBreakdown.map((t, i) => (
                   <div key={t.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                      <span style={{ color: "var(--muted)" }}>#{t.name}</span>
+                      <span style={{ color: "var(--muted)" }}>{CATEGORY_LABELS[t.name] || t.name}</span>
                     </div>
-                    <span className="font-mono text-white">{formatCurrency(t.value, "USD")}</span>
+                    <span className="font-mono text-white">{formatCurrency(t.value, "TRY")}</span>
                   </div>
                 ))}
               </div>
