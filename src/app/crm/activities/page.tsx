@@ -44,7 +44,7 @@ export default function ActivitiesPage() {
   const [form, setForm] = useState({ ...EMPTY_ACTIVITY });
   const [saving, setSaving] = useState(false);
   const [convertTarget, setConvertTarget] = useState<Activity | null>(null);
-  const [convertForm, setConvertForm] = useState({ title: "", amount: "", currency: "USD" });
+  const [convertForm, setConvertForm] = useState({ title: "", amount: "", currency: "TRY" });
 
   const load = () => {
     fetch("/api/activities").then(r => r.json()).then(setActivities);
@@ -126,7 +126,7 @@ export default function ActivitiesPage() {
     setConvertForm({
       title: activity.notes?.slice(0, 80) || `${activity.type} - ${activity.company?.name ?? "Yeni Fırsat"}`,
       amount: "",
-      currency: "USD",
+      currency: "TRY",
     });
   };
 
@@ -339,7 +339,7 @@ export default function ActivitiesPage() {
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Para Birimi</label>
                 <select className="text-sm" value={convertForm.currency} onChange={e => setConvertForm(f => ({ ...f, currency: e.target.value }))}>
-                  {[["USD", "USD"], ["EUR", "EUR"], ["TRY", "TRY"]].map(([code, label]) => (
+                  {[["TRY", "TRY (₺)"], ["USD", "USD ($)"], ["EUR", "EUR (€)"]].map(([code, label]) => (
                     <option key={code} value={code}>{label}</option>
                   ))}
                 </select>

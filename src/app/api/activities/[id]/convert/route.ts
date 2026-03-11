@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const currency: Currency =
     typeof body?.currency === "string" && ["USD", "EUR", "TRY"].includes(body.currency)
       ? (body.currency as Currency)
-      : "USD";
+      : "TRY";
 
   const deal = await prisma.deal.create({
     data: {

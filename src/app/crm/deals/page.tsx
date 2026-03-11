@@ -22,7 +22,7 @@ const STAGE_COLORS: Record<string, string> = {
   LEAD: "#64748b", QUALIFIED: "#6366f1", PROPOSAL: "#8b5cf6",
   NEGOTIATION: "#f59e0b", WON: "#10b981", LOST: "#ef4444",
 };
-const EMPTY = { title: "", amount: "", currency: "USD", stage: "LEAD", expectedCloseDate: "", companyId: "" };
+const EMPTY = { title: "", amount: "", currency: "TRY", stage: "LEAD", expectedCloseDate: "", companyId: "" };
 
 export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -108,11 +108,11 @@ export default function DealsPage() {
       <div className="grid grid-cols-3 gap-4">
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Active Pipeline</div>
-          <div className="text-xl font-semibold text-white font-mono">{formatCurrency(totalPipeline, "USD")}</div>
+          <div className="text-xl font-semibold text-white font-mono">{formatCurrency(totalPipeline, "TRY")}</div>
         </div>
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Won Revenue</div>
-          <div className="text-xl font-semibold font-mono" style={{ color: "#10b981" }}>{formatCurrency(wonTotal, "USD")}</div>
+          <div className="text-xl font-semibold font-mono" style={{ color: "#10b981" }}>{formatCurrency(wonTotal, "TRY")}</div>
         </div>
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Win Rate</div>
@@ -191,9 +191,9 @@ export default function DealsPage() {
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} className="text-sm">
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="TRY">TRY</option>
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
                   </select>
                 </div>
               </div>

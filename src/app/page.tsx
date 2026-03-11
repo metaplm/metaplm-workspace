@@ -98,9 +98,9 @@ export default function Dashboard() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
         {[
-          { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "USD"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
+          { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "TRY"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
           { label: "Hours This Month", value: formatHours(d.monthlyHours), sub: `${d.billableRate.toFixed(0)}% billable`, icon: Clock, color: "#06b6d4" },
-          { label: "Expected Income", value: formatCurrency(d.expectedIncome, "USD"), sub: "next 30 days", icon: DollarSign, color: "#10b981" },
+          { label: "Expected Income", value: formatCurrency(d.expectedIncome, "TRY"), sub: "next 30 days", icon: DollarSign, color: "#10b981" },
           { label: "Overdue Invoices", value: String(d.overdueInvoices), sub: "need attention", icon: AlertTriangle, color: d.overdueInvoices > 0 ? "#ef4444" : "#64748b" },
           { label: "Activity → Deal", value: `${d.activityStats.conversionRate.toFixed(0)}%`, sub: `${d.activityStats.converted}/${d.activityStats.total} converted`, icon: CheckCircle, color: "#a5b4fc" },
         ].map((card) => (
