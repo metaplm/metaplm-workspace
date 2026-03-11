@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X, FolderKanban } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -14,6 +14,7 @@ const nav = [
   { label: "Deals", href: "/crm/deals", icon: TrendingUp },
   { label: "Reports", href: "/crm/reports", icon: BarChart3 },
   { label: "Timesheet", href: null, divider: true },
+  { label: "Projects", href: "/timesheet/projects", icon: FolderKanban },
   { label: "Calendar", href: "/timesheet", icon: Clock },
   { label: "Reports", href: "/timesheet/reports", icon: BarChart3 },
   { label: "Finance", href: null, divider: true },

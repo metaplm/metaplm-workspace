@@ -6,7 +6,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year");
   const month = searchParams.get("month");
-  const dealId = searchParams.get("dealId");
+  const companyId = searchParams.get("companyId");
+  const projectId = searchParams.get("projectId");
   const category = searchParams.get("category");
   const customer = searchParams.get("customer");
   const billable = searchParams.get("billable");
@@ -14,10 +15,11 @@ export async function GET(req: NextRequest) {
   const end = searchParams.get("end");
 
   const where: Record<string, unknown> = {};
-  if (dealId) where.dealId = dealId;
+  if (companyId) where.companyId = companyId;
+  if (projectId) where.projectId = projectId;
   if (category) where.category = category;
   if (customer) {
-    where.customerName = { contains: customer, mode: "insensitive" };
+    where.company = { name: { contains: customer, mode: "insensitive" } };
   }
   if (billable === "true" || billable === "false") {
     where.billable = billable === "true";
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
 
   const entries = await prisma.timeEntry.findMany({
     where,
-    include: { deal: { include: { company: true } } },
+    include: { company: true, project: true },
     orderBy: { date: "desc" },
   });
   return NextResponse.json(entries);
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.timeEntry.create({
     data: { ...rest, hours, date: new Date(rest.date) },
-    include: { deal: true },
+    include: { company: true, project: true },
   });
   return NextResponse.json(entry, { status: 201 });
 }

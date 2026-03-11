@@ -1,9 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { parseTimeInput } from "@/lib/utils";
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const body = await req.json();
-  const entry = await prisma.timeEntry.update({ where: { id: params.id }, data: body });
+  const { value, unit, date, ...rest } = body;
+
+  const data: Record<string, unknown> = { ...rest };
+  if (value !== undefined) {
+    data.hours = unit ? parseTimeInput(String(value), unit) : parseFloat(value);
+  }
+  if (date) {
+    data.date = new Date(date);
+  }
+  // Remove non-Prisma fields that may have leaked through
+  delete data.value;
+  delete data.unit;
+
+  const entry = await prisma.timeEntry.update({
+    where: { id: params.id },
+    data,
+    include: { company: true, project: true },
+  });
   return NextResponse.json(entry);
 }
 

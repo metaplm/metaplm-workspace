@@ -14,32 +14,43 @@ interface TimeEntry {
   category: string;
   billable: boolean;
   notes?: string;
-  customerName?: string;
-  deal?: { id: string; title: string; company?: { name: string } };
+  companyId?: string;
+  company?: { id: string; name: string };
+  projectId?: string;
+  project?: { id: string; name: string; defaultBillable: boolean };
 }
-interface Category { id: string; name: string; defaultBillable: boolean; color: string; }
-interface Deal { id: string; title: string; company?: { name: string }; }
+interface Company { id: string; name: string; }
+interface Project { id: string; name: string; companyId: string; defaultBillable: boolean; }
+
+const CATEGORIES = [
+  { value: "TASK", label: "Task" },
+  { value: "MEETING", label: "Meeting" },
+  { value: "TRAINING", label: "Training" },
+  { value: "SUPPORT", label: "Support" },
+];
 
 export default function TimesheetPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ value: "", unit: "hours", category: "", billable: true, notes: "", dealId: "", customerName: "" });
+  const [form, setForm] = useState({ value: "", unit: "hours", category: "TASK", billable: true, notes: "", companyId: "", projectId: "" });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     const y = currentDate.getFullYear();
     const m = currentDate.getMonth() + 1;
     fetch(`/api/timeentries?year=${y}&month=${m}`).then(r => r.json()).then(setEntries);
-    fetch("/api/categories").then(r => r.json()).then(setCategories);
-    fetch("/api/deals").then(r => r.json()).then(setDeals);
+    fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    fetch("/api/projects").then(r => r.json()).then(setProjects);
   }, [currentDate]);
 
   useEffect(() => { load(); }, [load]);
+
+  const companyProjects = projects.filter(p => p.companyId === form.companyId);
 
 
   const getDayEntries = (date: Date) => entries.filter(e => isSameDay(new Date(e.date), date));
@@ -47,8 +58,7 @@ export default function TimesheetPage() {
 
   const openModal = (day: Date) => {
     setSelectedDay(day);
-    const defCat = categories[0];
-    setForm({ value: "", unit: "hours", category: defCat?.name || "", billable: defCat?.defaultBillable ?? true, notes: "", dealId: "", customerName: "" });
+    setForm({ value: "", unit: "hours", category: "TASK", billable: true, notes: "", companyId: "", projectId: "" });
     setEditingId(null);
     setShowModal(true);
   };
@@ -61,16 +71,20 @@ export default function TimesheetPage() {
       category: entry.category,
       billable: entry.billable,
       notes: entry.notes || "",
-      dealId: entry.deal?.id || "",
-      customerName: entry.customerName || "",
+      companyId: entry.companyId || "",
+      projectId: entry.projectId || "",
     });
     setEditingId(entry.id);
     setShowModal(true);
   };
 
-  const handleCategoryChange = (catName: string) => {
-    const cat = categories.find(c => c.name === catName);
-    setForm(f => ({ ...f, category: catName, billable: cat?.defaultBillable ?? true }));
+  const handleCompanyChange = (companyId: string) => {
+    setForm(f => ({ ...f, companyId, projectId: "" }));
+  };
+
+  const handleProjectChange = (projectId: string) => {
+    const proj = projects.find(p => p.id === projectId);
+    setForm(f => ({ ...f, projectId, billable: proj?.defaultBillable ?? f.billable }));
   };
 
   const save = async () => {
@@ -83,8 +97,8 @@ export default function TimesheetPage() {
         category: form.category,
         billable: form.billable,
         notes: form.notes,
-        dealId: form.dealId || null,
-        customerName: form.customerName?.trim() || null,
+        companyId: form.companyId || null,
+        projectId: form.projectId || null,
         date: format(selectedDay, "yyyy-MM-dd"),
       };
       if (editingId) {
@@ -201,12 +215,12 @@ export default function TimesheetPage() {
 
                 {/* Hours badge */}
                 {hours > 0 && (
-                  <div className={`text-xs font-mono px-1.5 py-0.5 rounded-md inline-block mb-1 ${
-                    status === "optimal" ? "text-emerald-300" :
-                    status === "overtime" ? "text-orange-300" : "text-amber-300"
+                  <div className={`text-xs font-bold rounded-full px-1.5 py-0.5 mb-1 w-fit ${
+                    status === "optimal" ? "text-emerald-100" :
+                    status === "overtime" ? "text-orange-100" : "text-amber-100"
                   }`} style={{
-                    background: status === "optimal" ? "rgba(16,185,129,0.15)" :
-                               status === "overtime" ? "rgba(249,115,22,0.15)" : "rgba(245,158,11,0.15)"
+                    background: status === "optimal" ? "rgba(16,185,129,0.35)" :
+                               status === "overtime" ? "rgba(249,115,22,0.35)" : "rgba(245,158,11,0.35)"
                   }}>
                     {formatHours(hours)}
                   </div>
@@ -215,8 +229,8 @@ export default function TimesheetPage() {
                 {/* Entry pills */}
                 <div className="space-y-0.5">
                   {dayEntries.slice(0, 2).map(e => (
-                    <div key={e.id} className="text-xs truncate rounded px-1 py-0.5" style={{ background: e.billable ? "rgba(99,102,241,0.2)" : "rgba(100,116,139,0.2)", color: e.billable ? "#a5b4fc" : "#94a3b8", fontSize: "10px" }}>
-                      {e.customerName || e.category}
+                    <div key={e.id} className="text-xs truncate rounded px-1 py-0.5 font-medium" style={{ background: e.billable ? "rgba(99,102,241,0.35)" : "rgba(100,116,139,0.35)", color: e.billable ? "#e0e7ff" : "#e2e8f0", fontSize: "10px" }}>
+                      {e.company?.name || e.project?.name || e.category}
                     </div>
                   ))}
                   {dayEntries.length > 2 && <div className="text-xs" style={{ color: "var(--muted)", fontSize: "10px" }}>+{dayEntries.length - 2} more</div>}
@@ -263,7 +277,7 @@ export default function TimesheetPage() {
                 <div className="text-xs font-medium" style={{ color: "var(--muted)" }}>Logged today:</div>
                 {getDayEntries(selectedDay).map(e => (
                   <div key={e.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <span className="text-white">{e.customerName || e.category} — {formatHours(e.hours)}</span>
+                    <span className="text-white">{e.company?.name || e.project?.name || e.category} — {formatHours(e.hours)}</span>
                     <div className="flex items-center gap-2">
                       <span
                         className="text-xs px-1.5 py-0.5 rounded"
@@ -305,21 +319,25 @@ export default function TimesheetPage() {
 
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Category *</label>
-                <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} className="text-sm">
-                  <option value="">— Select Category —</option>
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="text-sm">
+                  {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Customer Name</label>
-                <input
-                  type="text"
-                  value={form.customerName}
-                  onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))}
-                  placeholder="e.g. Acme Corp"
-                  className="text-sm"
-                />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Customer (Company)</label>
+                <select value={form.companyId} onChange={e => handleCompanyChange(e.target.value)} className="text-sm">
+                  <option value="">— Select Company —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Link to Project</label>
+                <select value={form.projectId} onChange={e => handleProjectChange(e.target.value)} className="text-sm" disabled={!form.companyId}>
+                  <option value="">— {form.companyId ? (companyProjects.length > 0 ? "Select Project" : "No projects for this company") : "Select a company first"} —</option>
+                  {companyProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
               </div>
 
               <div className="flex items-center justify-between glass rounded-lg px-3 py-2.5">
@@ -327,26 +345,6 @@ export default function TimesheetPage() {
                 <button onClick={() => setForm(f => ({ ...f, billable: !f.billable }))} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: form.billable ? "#6366f1" : "rgba(255,255,255,0.1)" }}>
                   <span className="absolute top-0.5 transition-all w-4 h-4 rounded-full bg-white" style={{ left: form.billable ? "calc(100% - 18px)" : "2px" }} />
                 </button>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Link to Project</label>
-                <select
-                  value={form.dealId}
-                  onChange={e => {
-                    const value = e.target.value;
-                    const deal = deals.find(d => d.id === value);
-                    setForm(f => ({
-                      ...f,
-                      dealId: value,
-                      customerName: f.customerName || deal?.company?.name || deal?.title || "",
-                    }));
-                  }}
-                  className="text-sm"
-                >
-                  <option value="">— No Project —</option>
-                  {deals.map(d => <option key={d.id} value={d.id}>{d.title}{d.company ? ` (${d.company.name})` : ""}</option>)}
-                </select>
               </div>
 
               <div>

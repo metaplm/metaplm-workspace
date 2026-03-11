@@ -5,7 +5,7 @@ export async function GET() {
   const deals = await prisma.deal.findMany({
     include: {
       company: true,
-      _count: { select: { timeEntries: true, activities: true } },
+      _count: { select: { activities: true } },
     },
     orderBy: { createdAt: "desc" },
   });

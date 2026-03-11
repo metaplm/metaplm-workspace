@@ -120,7 +120,7 @@ export async function getActiveProjects() {
  */
 export async function generateDraftInvoice({
   companyId,
-  dealId,
+  projectId,
   fromDate,
   toDate,
   currency,
@@ -128,7 +128,7 @@ export async function generateDraftInvoice({
   dueDate,
 }: {
   companyId: string
-  dealId?: string
+  projectId?: string
   fromDate: Date
   toDate:   Date
   currency: 'USD' | 'EUR' | 'TRY'
@@ -139,12 +139,10 @@ export async function generateDraftInvoice({
     where: {
       billable: true,
       date:     { gte: fromDate, lte: toDate },
-      deal:     {
-        companyId,
-        ...(dealId ? { id: dealId } : {}),
-      },
+      companyId,
+      ...(projectId ? { projectId } : {}),
     },
-    include: { deal: true },
+    include: { company: true, project: true },
     orderBy: { date: 'asc' },
   })
 
@@ -171,7 +169,6 @@ export async function generateDraftInvoice({
       currency,
       status:    'DRAFT',
       dueDate,
-      dealId:    dealId ?? null,
     },
     include: { deal: { include: { company: true } }, timeEntries: true },
   })

@@ -19,6 +19,8 @@ model Company {
   contacts    Contact[]
   activities  Activity[]
   deals       Deal[]
+  projects    Project[]
+  timeEntries TimeEntry[]
 }
 
 model Contact {
@@ -68,7 +70,6 @@ model Deal {
   companyId       String?
   company         Company?    @relation(fields: [companyId], references: [id])
   activities      Activity[]
-  timeEntries     TimeEntry[]
   invoices        Invoice[]
   expenses        Expense[]
   createdAt       DateTime    @default(now())
@@ -91,19 +92,39 @@ enum Currency {
 }
 
 model TimeEntry {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   date       DateTime
   hours      Float
-  category   String
-  billable   Boolean  @default(true)
+  category   TimeEntryCategory @default(TASK)
+  billable   Boolean           @default(true)
   notes      String?
-  customerName String?
-  dealId     String?
-  deal       Deal?    @relation(fields: [dealId], references: [id])
+  companyId  String?
+  company    Company?          @relation(fields: [companyId], references: [id])
+  projectId  String?
+  project    Project?          @relation(fields: [projectId], references: [id])
   invoiceId  String?
-  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  invoice    Invoice?          @relation(fields: [invoiceId], references: [id])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+enum TimeEntryCategory {
+  TASK
+  MEETING
+  TRAINING
+  SUPPORT
+}
+
+model Project {
+  id              String      @id @default(cuid())
+  name            String
+  companyId       String
+  company         Company     @relation(fields: [companyId], references: [id])
+  estimateDate    DateTime?
+  defaultBillable Boolean     @default(true)
+  timeEntries     TimeEntry[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 }
 
 model Invoice {

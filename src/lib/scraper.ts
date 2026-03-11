@@ -73,8 +73,17 @@ export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany>
       const imgUrl = ogImageMatch[1];
       result.logoUrl = imgUrl.startsWith("http") ? imgUrl : `${normalizedUrl}${imgUrl}`;
     } else {
-      // Try Clearbit logo API as fallback
-      result.logoUrl = `https://logo.clearbit.com/${hostname}`;
+      // Try favicon from HTML
+      const faviconMatch =
+        html.match(/<link[^>]+rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]+href=["']([^"']+)["']/i) ||
+        html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["'](?:icon|shortcut icon|apple-touch-icon)["']/i);
+      if (faviconMatch) {
+        const favUrl = faviconMatch[1];
+        result.logoUrl = favUrl.startsWith("http") ? favUrl : favUrl.startsWith("//") ? `https:${favUrl}` : `${normalizedUrl}${favUrl.startsWith("/") ? "" : "/"}${favUrl}`;
+      } else {
+        // Google favicon service as fallback
+        result.logoUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
+      }
     }
 
     // Extract LinkedIn URL
@@ -88,7 +97,7 @@ export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany>
     // Return partial data with clearbit logo fallback
     return {
       website: normalizedUrl,
-      logoUrl: `https://logo.clearbit.com/${hostname}`,
+      logoUrl: `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`,
       name: hostname.replace(/^www\./, "").split(".")[0],
     };
   }

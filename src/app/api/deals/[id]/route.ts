@@ -7,7 +7,6 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
     include: {
       company: true,
       activities: { orderBy: { createdAt: "desc" } },
-      timeEntries: { orderBy: { date: "desc" } },
       invoices: true,
       expenses: true,
     },

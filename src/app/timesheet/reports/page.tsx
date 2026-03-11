@@ -12,50 +12,61 @@ interface TimeEntry {
   category: string;
   billable: boolean;
   notes?: string;
-  customerName?: string;
-  deal?: { id: string; title: string; company?: { name: string } };
+  companyId?: string;
+  company?: { id: string; name: string };
+  projectId?: string;
+  project?: { id: string; name: string };
 }
-interface Category { id: string; name: string; }
-interface Deal { id: string; title: string; company?: { name: string } }
+interface Company { id: string; name: string; }
+interface Project { id: string; name: string; companyId: string; }
+
+const CATEGORIES = [
+  { value: "TASK", label: "Task" },
+  { value: "MEETING", label: "Meeting" },
+  { value: "TRAINING", label: "Training" },
+  { value: "SUPPORT", label: "Support" },
+];
 
 type ReportFilters = {
   start: string;
   end: string;
-  dealId: string;
+  companyId: string;
+  projectId: string;
   category: string;
-  customer: string;
   billable: "all" | "billable" | "nonbillable";
 };
 
 export default function TimesheetReportsPage() {
   const [reportEntries, setReportEntries] = useState<TimeEntry[]>([]);
   const [reportLoading, setReportLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [filters, setFilters] = useState<ReportFilters>(() => {
     const now = new Date();
     return {
       start: format(startOfMonth(now), "yyyy-MM-dd"),
       end: format(endOfMonth(now), "yyyy-MM-dd"),
-      dealId: "",
+      companyId: "",
+      projectId: "",
       category: "",
-      customer: "",
       billable: "all",
     };
   });
 
   useEffect(() => {
-    fetch("/api/categories").then(r => r.json()).then(setCategories);
-    fetch("/api/deals").then(r => r.json()).then(setDeals);
+    fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    fetch("/api/projects").then(r => r.json()).then(setProjects);
   }, []);
+
+  const filteredProjects = filters.companyId ? projects.filter(p => p.companyId === filters.companyId) : projects;
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (filters.start) params.set("start", filters.start);
     if (filters.end) params.set("end", filters.end);
-    if (filters.dealId) params.set("dealId", filters.dealId);
+    if (filters.companyId) params.set("companyId", filters.companyId);
+    if (filters.projectId) params.set("projectId", filters.projectId);
     if (filters.category) params.set("category", filters.category);
-    if (filters.customer) params.set("customer", filters.customer);
     if (filters.billable === "billable") params.set("billable", "true");
     if (filters.billable === "nonbillable") params.set("billable", "false");
 
@@ -79,8 +90,8 @@ export default function TimesheetReportsPage() {
       ["Date", "Customer", "Project", "Category", "Billable", "Hours", "Notes"],
       reportEntries.map(entry => [
         format(new Date(entry.date), "yyyy-MM-dd"),
-        entry.customerName || entry.deal?.company?.name || "-",
-        entry.deal?.title || "No Project",
+        entry.company?.name || "—",
+        entry.project?.name || "—",
         entry.category,
         entry.billable ? "Yes" : "No",
         entry.hours,
@@ -118,24 +129,25 @@ export default function TimesheetReportsPage() {
             </select>
           </div>
           <div>
+            <label className="block mb-1" style={{ color: "var(--muted)" }}>Customer (Company)</label>
+            <select value={filters.companyId} onChange={e => setFilters(f => ({ ...f, companyId: e.target.value, projectId: "" }))}>
+              <option value="">All Companies</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="block mb-1" style={{ color: "var(--muted)" }}>Project</label>
-            <select value={filters.dealId} onChange={e => setFilters(f => ({ ...f, dealId: e.target.value }))}>
-              <option value="">All Deals</option>
-              {deals.map(d => (
-                <option key={d.id} value={d.id}>{d.title}{d.company ? ` (${d.company.name})` : ""}</option>
-              ))}
+            <select value={filters.projectId} onChange={e => setFilters(f => ({ ...f, projectId: e.target.value }))} disabled={!filters.companyId && filteredProjects.length === 0}>
+              <option value="">All Projects</option>
+              {filteredProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
           <div>
             <label className="block mb-1" style={{ color: "var(--muted)" }}>Category</label>
             <select value={filters.category} onChange={e => setFilters(f => ({ ...f, category: e.target.value }))}>
               <option value="">All</option>
-              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
-          </div>
-          <div>
-            <label className="block mb-1" style={{ color: "var(--muted)" }}>Customer</label>
-            <input type="text" placeholder="Search" value={filters.customer} onChange={e => setFilters(f => ({ ...f, customer: e.target.value }))} />
           </div>
         </div>
       </div>
@@ -164,8 +176,8 @@ export default function TimesheetReportsPage() {
               {reportEntries.map(entry => (
                 <tr key={entry.id} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td className="py-2 px-4 text-white">{format(new Date(entry.date), "MMM d")}</td>
-                  <td className="py-2 px-4">{entry.customerName || entry.deal?.company?.name || "—"}</td>
-                  <td className="py-2 px-4">{entry.deal?.title || "No Project"}</td>
+                  <td className="py-2 px-4">{entry.company?.name || "—"}</td>
+                  <td className="py-2 px-4">{entry.project?.name || "—"}</td>
                   <td className="py-2 px-4" style={{ color: "var(--muted)" }}>{entry.category}</td>
                   <td className="py-2 px-4 text-right font-mono text-white">{formatHours(entry.hours)}</td>
                 </tr>
