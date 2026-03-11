@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon } from "lucide-react";
+import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -26,6 +26,7 @@ const nav = [
 export default function Sidebar() {
   const path = usePathname();
   const [theme, setTheme] = useState<"dark" | "light">("light");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const saved = (typeof window !== "undefined" && localStorage.getItem("theme")) as "dark" | "light" | null;
@@ -44,7 +45,23 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-56 flex flex-col border-r shrink-0" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+    <>
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg glass"
+        style={{ color: "var(--text)" }}
+      >
+        {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Sidebar */}
+      <aside className={`
+        w-56 flex flex-col border-r shrink-0
+        fixed md:relative inset-y-0 left-0 z-40
+        transform transition-transform duration-200 ease-in-out
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+      `} style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
       {/* Logo */}
       <div className="px-5 py-5 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-3">
@@ -94,5 +111,14 @@ export default function Sidebar() {
         <div className="font-mono">v1.0.0</div>
       </div>
     </aside>
+
+    {/* Mobile Overlay */}
+    {mobileOpen && (
+      <div
+        className="md:hidden fixed inset-0 bg-black/50 z-30"
+        onClick={() => setMobileOpen(false)}
+      />
+    )}
+    </>
   );
 }

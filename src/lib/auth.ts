@@ -1,5 +1,3 @@
-'use server'
-
 import { createHash } from 'crypto'
 import jwt from 'jsonwebtoken'
 

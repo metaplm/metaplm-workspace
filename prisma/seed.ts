@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+import { createHash } from 'crypto'
 
 const prisma = new PrismaClient()
+
+function hashPassword(raw: string) {
+  return createHash('sha256').update(raw).digest('hex')
+}
 
 async function main() {
   // Seed default categories
@@ -23,7 +28,17 @@ async function main() {
     })
   }
 
-  console.log('✅ Seed completed: categories loaded')
+  // Seed admin user
+  await prisma.user.upsert({
+    where: { email: 'mirac' },
+    update: {},
+    create: {
+      email: 'mirac',
+      passwordHash: hashPassword('352458'),
+    },
+  })
+
+  console.log('✅ Seed completed: categories and admin user loaded')
 }
 
 main()

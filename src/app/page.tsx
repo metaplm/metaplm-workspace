@@ -49,14 +49,14 @@ export default function Dashboard() {
   const d = data!;
 
   return (
-    <div className="p-8 space-y-8 animate-in">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in pt-16 md:pt-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={56} height={56} className="rounded-lg" />
-          <span className="text-2xl font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</span>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 md:gap-4">
+          <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={48} height={48} className="rounded-lg md:w-14 md:h-14" />
+          <span className="text-xl md:text-2xl font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</span>
         </div>
-        <div className="text-sm font-mono" style={{ color: "var(--muted)" }}>
+        <div className="text-xs md:text-sm font-mono" style={{ color: "var(--muted)" }}>
           {currentTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           {" · "}
           {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -64,7 +64,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4">
         {[
           { label: "Pipeline Value", value: formatCurrency(d.totalPipeline, "USD"), sub: `${d.dealCount} active deals`, icon: TrendingUp, color: "#6366f1" },
           { label: "Hours This Month", value: formatHours(d.monthlyHours), sub: `${d.billableRate.toFixed(0)}% billable`, icon: Clock, color: "#06b6d4" },
@@ -88,12 +88,12 @@ export default function Dashboard() {
       </div>
 
       {/* Activity Funnel Summary */}
-      <div className="glass rounded-xl p-5">
-        <div className="flex items-center justify-between mb-2">
+      <div className="glass rounded-xl p-4 md:p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 md:mb-2 gap-2">
           <span className="text-sm font-semibold text-white">Sales Funnel Snapshot</span>
           <span className="text-xs" style={{ color: "var(--muted)" }}>Upcoming next actions: {d.activityStats.upcomingNextActions}</span>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
           {[{
             title: "Total Activities",
             value: d.activityStats.total,
@@ -159,9 +159,9 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="glass rounded-xl p-5">
+      <div className="glass rounded-xl p-4 md:p-5">
         <h2 className="text-sm font-semibold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { label: "Add Company", href: "/crm/companies", emoji: "🏢" },
             { label: "Log Time", href: "/timesheet", emoji: "⏱️" },
