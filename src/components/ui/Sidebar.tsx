@@ -63,10 +63,17 @@ export default function Sidebar() {
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `} style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
       {/* Logo */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="px-4 py-4 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="flex items-center gap-3">
-          <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={38} height={38} className="rounded-lg" />
-          <div className="text-sm font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</div>
+          <div className="w-14 h-10 rounded-lg overflow-hidden shadow-md ring-1 ring-white/10 shrink-0 bg-white/60 p-1">
+            <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={56} height={40} className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold tracking-tight leading-tight" style={{ color: "#014670" }}>
+              Meta<span style={{ color: "#0284c7" }}>PLM</span>
+            </div>
+            <div className="text-[10px] tracking-wide uppercase" style={{ color: "var(--muted)" }}>Workspace</div>
+          </div>
         </div>
       </div>
 

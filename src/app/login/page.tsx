@@ -23,12 +23,12 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "Login failed");
       }
 
-      // Use window.location for hard redirect to ensure cookie is set
       window.location.href = "/";
     } catch (err: any) {
       setError(err.message || "Login failed");

@@ -51,15 +51,47 @@ export default function Dashboard() {
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in pt-16 md:pt-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3 md:gap-4">
-          <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={48} height={48} className="rounded-lg md:w-14 md:h-14" />
-          <span className="text-xl md:text-2xl font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</span>
+      <div className="glass rounded-2xl p-5 md:p-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-12 md:w-20 md:h-14 rounded-xl overflow-hidden shadow-lg ring-2 ring-white/10 shrink-0 bg-white/60 p-1">
+              <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={80} height={56} className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h1 className="text-lg md:text-xl font-bold tracking-tight" style={{ color: "#014670" }}>
+                Meta<span style={{ color: "#0284c7" }}>PLM</span> <span className="font-normal" style={{ color: "var(--text)" }}>Workspace</span>
+              </h1>
+              <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Business Intelligence Dashboard</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-xs font-medium" style={{ color: "var(--text)" }}>
+                {currentTime.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              </div>
+              <div className="text-xs font-mono mt-0.5" style={{ color: "var(--muted)" }}>
+                {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="text-xs md:text-sm font-mono" style={{ color: "var(--muted)" }}>
-          {currentTime.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          {" · "}
-          {currentTime.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </div>
+
+      {/* Quick Actions - Mobile first */}
+      <div className="md:hidden glass rounded-xl p-4">
+        <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>Quick Actions</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: "Add Company", href: "/crm/companies", emoji: "🏢" },
+            { label: "Log Time", href: "/timesheet", emoji: "⏱️" },
+            { label: "New Invoice", href: "/finance/invoices", emoji: "📄" },
+            { label: "Add Expense", href: "/finance/expenses", emoji: "💸" },
+          ].map((q) => (
+            <a key={q.label} href={q.href} className="glass rounded-lg p-3 flex flex-col items-center gap-2 glass-hover transition-all cursor-pointer text-center">
+              <span className="text-xl">{q.emoji}</span>
+              <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{q.label}</span>
+            </a>
+          ))}
         </div>
       </div>
 
@@ -158,10 +190,10 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="glass rounded-xl p-4 md:p-5">
-        <h2 className="text-sm font-semibold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Quick Actions - Desktop only */}
+      <div className="hidden md:block glass rounded-xl p-5">
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text)" }}>Quick Actions</h2>
+        <div className="grid grid-cols-4 gap-3">
           {[
             { label: "Add Company", href: "/crm/companies", emoji: "🏢" },
             { label: "Log Time", href: "/timesheet", emoji: "⏱️" },
@@ -170,7 +202,7 @@ export default function Dashboard() {
           ].map((q) => (
             <a key={q.label} href={q.href} className="glass rounded-lg p-4 flex flex-col items-center gap-2 glass-hover transition-all cursor-pointer text-center">
               <span className="text-2xl">{q.emoji}</span>
-              <span className="text-xs font-medium text-white">{q.label}</span>
+              <span className="text-xs font-medium" style={{ color: "var(--text)" }}>{q.label}</span>
             </a>
           ))}
         </div>

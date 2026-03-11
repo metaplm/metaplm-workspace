@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="flex h-screen overflow-hidden">
         {!isLoginPage && <Sidebar />}
-        <main className={`flex-1 overflow-y-auto relative ${isLoginPage ? "w-full" : ""} ${!isLoginPage ? "md:ml-0 ml-0" : ""}`}>
+        <main className={`flex-1 overflow-y-auto relative ${isLoginPage ? "w-full" : ""} ${!isLoginPage ? "md:ml-0 ml-0" : ""} pb-16 md:pb-0`}>
           {children}
         </main>
       </body>
