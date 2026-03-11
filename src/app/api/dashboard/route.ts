@@ -65,9 +65,13 @@ export async function GET() {
     .sort((a, b) => b.hours - a.hours)
     .slice(0, 5);
 
-  // Expense breakdown
-  const monthlyExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const expenseByCategory = expenses.reduce((acc, e) => {
+  // Expense breakdown (map to typed slice to avoid legacy client type issues)
+  const expenseItems = (expenses as any[]).map((e) => ({
+    amount: e.amount as number,
+    category: (e as any).category ?? "GENEL",
+  }));
+  const monthlyExpenses = expenseItems.reduce((s, e) => s + e.amount, 0);
+  const expenseByCategory = expenseItems.reduce((acc, e) => {
     const cat = e.category || "GENEL";
     if (!acc[cat]) acc[cat] = 0;
     acc[cat] += e.amount;

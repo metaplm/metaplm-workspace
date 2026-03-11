@@ -97,7 +97,7 @@ export default function ContactsPage() {
         <input placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(c => (
           <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -108,11 +108,11 @@ export default function ContactsPage() {
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
                 {c.firstName[0]}{c.lastName[0]}
               </div>
-              <div className="flex-1 min-w-0 pr-16">
-                <div className="font-medium text-white text-sm">{c.firstName} {c.lastName}</div>
-                {c.title && <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{c.title}</div>}
+              <div className="flex-1 min-w-0 pr-12">
+                <div className="font-medium text-white text-sm truncate" title={`${c.firstName} ${c.lastName}`}>{c.firstName} {c.lastName}</div>
+                {c.title && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{c.title}</div>}
                 {c.company && (
-                  <div className="flex items-center gap-1 mt-1">
+                  <div className="flex items-center gap-1 mt-1 truncate">
                     <Building2 size={10} style={{ color: "var(--muted)" }} />
                     <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
                   </div>

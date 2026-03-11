@@ -99,7 +99,7 @@ export default function CompaniesPage() {
         <input placeholder="Search companies..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(c => (
           <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -110,12 +110,12 @@ export default function CompaniesPage() {
               <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
                 {c.logoUrl ? <img src={c.logoUrl} alt={c.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Building2 size={18} style={{ color: "var(--muted)" }} />}
               </div>
-              <div className="flex-1 min-w-0 pr-16">
-                <div className="font-medium text-white text-sm truncate">{c.name}</div>
-                {c.website && <div className="text-xs mt-0.5 flex items-center gap-1" style={{ color: "var(--muted)" }}><Globe size={10} />{c.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</div>}
+              <div className="flex-1 min-w-0 pr-12">
+                <div className="font-medium text-white text-sm truncate" title={c.name}>{c.name}</div>
+                {c.website && <div className="text-xs mt-0.5 flex items-center gap-1 truncate" style={{ color: "var(--muted)" }}><Globe size={10} />{c.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</div>}
               </div>
             </div>
-            {c.description && <p className="text-xs mb-3 line-clamp-2" style={{ color: "var(--muted)" }}>{c.description}</p>}
+            {c.description && <p className="text-xs mb-3 line-clamp-2 break-words" style={{ color: "var(--muted)" }}>{c.description}</p>}
             <div className="flex items-center justify-between text-xs pt-3" style={{ borderTop: "1px solid var(--border)" }}>
               <span style={{ color: "var(--muted)" }}>{c.contacts.length} contacts · {c.deals.length} deals</span>
               {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" className="flex items-center gap-1 text-blue-400"><Linkedin size={11} />LinkedIn</a>}
