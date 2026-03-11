@@ -12,7 +12,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const count = await prisma.invoice.count();
-  const number = `INV-${String(count + 1).padStart(4, "0")}`;
+  const year = new Date().getFullYear();
+  const number = `GIB${year}${String(count + 1).padStart(9, "0")}`;
 
   const invoice = await prisma.invoice.create({
     data: {

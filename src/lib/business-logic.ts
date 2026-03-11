@@ -158,9 +158,10 @@ export async function generateDraftInvoice({
 
   const totalAmount = Object.values(grouped).reduce((sum, { hours }) => sum + hours * hourlyRate, 0)
 
-  // Generate invoice number: INV-YYYYMM-XXXX
+  // Generate invoice number: GIB + Year + 9-digit sequential
   const count = await prisma.invoice.count()
-  const number = `INV-${new Date().toISOString().slice(0, 7).replace('-', '')}-${String(count + 1).padStart(4, '0')}`
+  const year = new Date().getFullYear()
+  const number = `GIB${year}${String(count + 1).padStart(9, '0')}`
 
   const invoice = await prisma.invoice.create({
     data: {

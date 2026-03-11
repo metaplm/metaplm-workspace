@@ -26,7 +26,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; icon: any }> = {
   CANCELLED: { bg: "rgba(100,116,139,0.15)", text: "#64748b", icon: X },
 };
 
-const EMPTY = { amount: "", currency: "USD", status: "DRAFT", dueDate: "", dealId: "", notes: "" };
+const EMPTY = { amount: "", currency: "TRY", status: "DRAFT", dueDate: "", dealId: "", notes: "" };
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -192,9 +192,9 @@ export default function InvoicesPage() {
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Currency</label>
                   <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))} className="text-sm">
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="TRY">TRY</option>
+                    <option value="TRY">TRY (₺)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
                   </select>
                 </div>
               </div>
