@@ -39,11 +39,20 @@
 }
 
 [data-theme="light"] .text-white { color: var(--text) !important; }
+[data-theme="light"] .text-white\/90 { color: var(--text) !important; opacity: 0.9; }
 [data-theme="light"] .text-slate-400 { color: var(--muted) !important; }
 [data-theme="light"] .text-slate-500 { color: var(--muted) !important; }
 [data-theme="light"] .hover\:text-white:hover { color: var(--accent) !important; }
 [data-theme="light"] .hover\:text-red-400:hover { color: #dc2626 !important; }
 [data-theme="light"] .hover\:text-blue-400:hover { color: #2563eb !important; }
+
+/* Ensure all white text becomes readable in light mode */
+[data-theme="light"] h1, 
+[data-theme="light"] h2, 
+[data-theme="light"] h3 { color: var(--text) !important; }
+
+[data-theme="light"] .font-semibold,
+[data-theme="light"] .font-medium { color: inherit; }
 
 [data-theme="light"] .glass-hover:hover {
   background: rgba(2, 103, 160, 0.07);

@@ -116,7 +116,7 @@ export default function Dashboard() {
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-xs font-medium mb-3" style={{ color: "var(--muted)" }}>{card.label}</div>
-                <div className="text-2xl font-semibold text-white font-mono">{card.value}</div>
+                <div className="text-2xl font-semibold font-mono" style={{ color: "var(--text)" }}>{card.value}</div>
                 <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>{card.sub}</div>
               </div>
               <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${card.color}20` }}>
@@ -130,7 +130,7 @@ export default function Dashboard() {
       {/* Deal Stage Funnel */}
       <div className="glass rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white">Deal Stage Funnel</h2>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Deal Stage Funnel</h2>
           <span className="text-xs" style={{ color: "var(--muted)" }}>{d.dealCount} active deals</span>
         </div>
         <div className="space-y-3">
@@ -143,7 +143,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span style={{ color: "var(--muted)" }}>{stage.stage}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-white font-medium">{stage.count} deals</span>
+                    <span className="font-medium" style={{ color: "var(--text)" }}>{stage.count} deals</span>
                     <span className="font-mono" style={{ color: colors[idx] }}>{formatCurrency(stage.amount, "TRY")}</span>
                   </div>
                 </div>
@@ -161,7 +161,7 @@ export default function Dashboard() {
         {/* Expense Breakdown */}
         <div className="glass rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Top Expenses</h2>
+            <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Top Expenses</h2>
             <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>{formatCurrency(d.monthlyExpenses, "TRY")}</span>
           </div>
           {d.topExpenseCategories.length === 0 ? (
@@ -176,7 +176,7 @@ export default function Dashboard() {
                   <div key={cat.category}>
                     <div className="flex items-center justify-between text-xs mb-1">
                       <span style={{ color: "var(--muted)" }}>{labels[cat.category] || cat.category}</span>
-                      <span className="font-mono text-white">{formatCurrency(cat.amount, "TRY")}</span>
+                      <span className="font-mono" style={{ color: "var(--text)" }}>{formatCurrency(cat.amount, "TRY")}</span>
                     </div>
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
                       <div className="h-full rounded-full" style={{ width: `${percent}%`, background: colors[idx] }} />
@@ -191,7 +191,7 @@ export default function Dashboard() {
         {/* Timesheet by Project */}
         <div className="glass rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">Hours by Project</h2>
+            <h2 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Hours by Project</h2>
             <span className="text-xs font-mono" style={{ color: "var(--muted)" }}>{formatHours(d.monthlyHours)} total</span>
           </div>
           {d.topProjects.length === 0 ? (
@@ -204,7 +204,7 @@ export default function Dashboard() {
                 return (
                   <div key={proj.name}>
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-white truncate" style={{ maxWidth: "60%" }}>{proj.name}</span>
+                      <span className="truncate" style={{ maxWidth: "60%", color: "var(--text)" }}>{proj.name}</span>
                       <span className="font-mono" style={{ color: "var(--muted)" }}>{formatHours(proj.hours)}</span>
                     </div>
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
@@ -221,7 +221,7 @@ export default function Dashboard() {
       {/* Billability Bar */}
       <div className="glass rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
-          <span className="text-sm font-medium text-white">Billable vs Non-Billable Hours</span>
+          <span className="text-sm font-medium" style={{ color: "var(--text)" }}>Billable vs Non-Billable Hours</span>
           <span className="text-sm font-mono" style={{ color: "var(--muted)" }}>{formatHours(d.billableHours)} / {formatHours(d.monthlyHours)}</span>
         </div>
         <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
@@ -235,7 +235,7 @@ export default function Dashboard() {
 
       {/* Recent Activities */}
       <div className="glass rounded-xl p-5">
-        <h2 className="text-sm font-semibold text-white mb-4">Recent Activities</h2>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text)" }}>Recent Activities</h2>
         {d.recentActivities.length === 0 ? (
           <div className="text-sm py-8 text-center" style={{ color: "var(--muted)" }}>No activities yet. Start by adding companies in CRM.</div>
         ) : (
@@ -246,7 +246,7 @@ export default function Dashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium" style={{ color: activityColor[act.type] }}>{act.type}</span>
-                    {act.company && <span className="text-xs text-white">{act.company.name}</span>}
+                    {act.company && <span className="text-xs" style={{ color: "var(--text)" }}>{act.company.name}</span>}
                     {act.contact && <span className="text-xs" style={{ color: "var(--muted)" }}>{act.contact.firstName} {act.contact.lastName}</span>}
                   </div>
                   {act.notes && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{act.notes}</div>}
