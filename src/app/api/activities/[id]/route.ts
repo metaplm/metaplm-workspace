@@ -9,6 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       type: body.type,
       notes: body.notes,
       nextActionDate: body.nextActionDate ? new Date(body.nextActionDate) : null,
+      createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
       companyId: body.companyId || null,
       contactId: body.contactId || null,
     },

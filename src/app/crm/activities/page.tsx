@@ -29,6 +29,7 @@ const EMPTY_ACTIVITY = {
   type: "MEETING" as Activity["type"],
   notes: "",
   nextActionDate: "",
+  createdAt: new Date().toISOString().slice(0, 10),
   companyId: "",
   contactId: "",
 };
@@ -70,6 +71,7 @@ export default function ActivitiesPage() {
       type: form.type,
       notes: form.notes,
       nextActionDate: form.nextActionDate ? new Date(form.nextActionDate) : null,
+      createdAt: form.createdAt ? new Date(form.createdAt) : undefined,
     };
     if (form.companyId) payload.companyId = form.companyId;
     if (form.contactId) payload.contactId = form.contactId;
@@ -108,6 +110,7 @@ export default function ActivitiesPage() {
       type: activity.type,
       notes: activity.notes || "",
       nextActionDate: activity.nextActionDate ? activity.nextActionDate.slice(0, 10) : "",
+      createdAt: activity.createdAt ? activity.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
       companyId: activity.company?.id || "",
       contactId: activity.contact?.id || "",
     });
@@ -116,7 +119,7 @@ export default function ActivitiesPage() {
   };
 
   const openAdd = () => {
-    setForm({ ...EMPTY_ACTIVITY });
+    setForm({ ...EMPTY_ACTIVITY, createdAt: new Date().toISOString().slice(0, 10) });
     setEditingId(null);
     setShowModal(true);
   };
@@ -282,14 +285,31 @@ export default function ActivitiesPage() {
               ))}
             </div>
 
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Notlar</label>
-              <textarea rows={3} className="text-sm" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Toplantı özeti, sonraki adımlar..." />
-            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Activity Date</label>
+                <input
+                  type="date"
+                  value={form.createdAt}
+                  onChange={e => setForm(f => ({ ...f, createdAt: e.target.value }))}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Notlar</label>
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Toplantı özeti, sonraki adımlar..."
+                />
+              </div>
 
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Sonraki Aksiyon</label>
-              <input type="date" className="text-sm" value={form.nextActionDate} onChange={e => setForm(f => ({ ...f, nextActionDate: e.target.value }))} />
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Sonraki Aksiyon</label>
+                <input type="date" className="text-sm" value={form.nextActionDate} onChange={e => setForm(f => ({ ...f, nextActionDate: e.target.value }))} />
+              </div>
+
             </div>
 
             <div>

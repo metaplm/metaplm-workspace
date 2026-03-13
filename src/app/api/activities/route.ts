@@ -22,7 +22,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const activity = await prisma.activity.create({
-    data: body,
+    data: {
+      ...body,
+      createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
+    },
     include: { company: true, contact: true },
   });
   return NextResponse.json(activity, { status: 201 });
