@@ -52,6 +52,18 @@ async function main() {
     },
   })
 
+  // Seed Serdar user
+  await prisma.user.upsert({
+    where: { email: 'serdar.aktas@meta-plm.com' },
+    update: {
+      passwordHash: hashPassword('meta2026!!??'),
+    },
+    create: {
+      email: 'serdar.aktas@meta-plm.com',
+      passwordHash: hashPassword('meta2026!!??'),
+    },
+  })
+
   console.log('✅ Seed completed: categories and admin user loaded')
 }
 
