@@ -171,7 +171,7 @@ export default function Dashboard() {
               {d.topExpenseCategories.map((cat, idx) => {
                 const percent = d.monthlyExpenses > 0 ? (cat.amount / d.monthlyExpenses) * 100 : 0;
                 const colors = ["#ef4444", "#f59e0b", "#10b981"];
-                const labels: Record<string, string> = { ARAC: "Vehicle", YEMEK: "Food", MUHASEBE: "Accounting", DEMIRBAS: "Equipment", GENEL: "General", VERGI: "Tax", KIRA: "Rent" };
+                const labels: Record<string, string> = { ARAC: "Vehicle", YEMEK: "Food", MUHASEBE: "Accounting", DEMIRBAS: "Equipment", GENEL: "General", VERGI: "Tax", KIRA: "Rent", AKARYAKIT: "Fuel" };
                 return (
                   <div key={cat.category}>
                     <div className="flex items-center justify-between text-xs mb-1">

@@ -25,7 +25,7 @@ interface Expense {
 
 const CATEGORY_LABELS: Record<string, string> = {
   ARAC: 'Araç', YEMEK: 'Yemek', MUHASEBE: 'Muhasebe',
-  DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi', KIRA: 'Kira',
+  DEMIRBAS: 'Demirbaş', GENEL: 'Genel', VERGI: 'Vergi', KIRA: 'Kira', AKARYAKIT: 'Akaryakıt',
 };
 
 type DateRange = { start: string; end: string };

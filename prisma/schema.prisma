@@ -161,6 +161,7 @@ enum ExpenseCategory {
   GENEL
   VERGI
   KIRA
+  AKARYAKIT
 }
 
 model Expense {
