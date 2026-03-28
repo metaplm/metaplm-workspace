@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Activity {
@@ -44,6 +44,8 @@ function ActivityCard({
   onConvert,
   onAddChild,
   isChild = false,
+  collapsed,
+  onToggleCollapse,
 }: {
   activity: Activity;
   onEdit: (a: Activity) => void;
@@ -51,8 +53,12 @@ function ActivityCard({
   onConvert: (a: Activity) => void;
   onAddChild: (a: Activity) => void;
   isChild?: boolean;
+  collapsed: boolean;
+  onToggleCollapse: (id: string) => void;
 }) {
   const typeMeta = TYPE_OPTIONS.find(t => t.value === activity.type);
+  const hasChildren = (activity.children?.length ?? 0) > 0;
+
   return (
     <div className={isChild ? "ml-6 border-l-2 pl-4" : ""} style={isChild ? { borderColor: "rgba(255,255,255,0.1)" } : {}}>
       <div className="glass rounded-xl p-4 flex flex-col gap-2 relative group">
@@ -70,13 +76,23 @@ function ActivityCard({
         </div>
         <div className="flex items-center justify-between pr-24">
           <div className="flex items-center gap-2">
+            {hasChildren && (
+              <button
+                onClick={() => onToggleCollapse(activity.id)}
+                className="p-0.5 rounded hover:bg-white/10 transition-colors"
+                style={{ color: "var(--muted)" }}
+                title={collapsed ? "Genişlet" : "Daralt"}
+              >
+                {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+              </button>
+            )}
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: typeMeta?.accent, background: typeMeta?.bg }}>
               {typeMeta?.label}
             </span>
             <span className="text-xs" style={{ color: "var(--muted)" }}>
               {new Date(activity.createdAt).toLocaleDateString()}
             </span>
-            {(activity.children?.length ?? 0) > 0 && (
+            {hasChildren && (
               <span className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ color: "#a5b4fc", background: "rgba(99,102,241,0.12)" }}>
                 <GitBranch size={10} /> {activity.children!.length} devam
               </span>
@@ -101,9 +117,9 @@ function ActivityCard({
           )}
         </div>
       </div>
-      {activity.children && activity.children.length > 0 && (
+      {hasChildren && !collapsed && (
         <div className="space-y-2 mt-2">
-          {activity.children.map(child => (
+          {activity.children!.map(child => (
             <ActivityCard
               key={child.id}
               activity={child}
@@ -112,6 +128,8 @@ function ActivityCard({
               onConvert={onConvert}
               onAddChild={onAddChild}
               isChild
+              collapsed={false}
+              onToggleCollapse={onToggleCollapse}
             />
           ))}
         </div>
@@ -125,6 +143,9 @@ export default function ActivitiesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filterType, setFilterType] = useState<string>("ALL");
+  const [filterCompanyId, setFilterCompanyId] = useState<string>("");
+  const [filterContactId, setFilterContactId] = useState<string>("");
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -148,7 +169,36 @@ export default function ActivitiesPage() {
     return flat;
   }, [activities]);
 
-  const filteredActivities = filterType === "ALL" ? activities : activities.filter(a => a.type === filterType || a.children?.some(c => c.type === filterType));
+  // IDs of root activities that have children (for collapse all/expand all)
+  const parentIds = useMemo(() => activities.filter(a => (a.children?.length ?? 0) > 0).map(a => a.id), [activities]);
+  const allCollapsed = parentIds.length > 0 && parentIds.every(id => collapsedIds.has(id));
+
+  const toggleCollapseAll = () => {
+    if (allCollapsed) {
+      setCollapsedIds(new Set());
+    } else {
+      setCollapsedIds(new Set(parentIds));
+    }
+  };
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter(a => {
+      if (filterType !== "ALL" && a.type !== filterType) return false;
+      if (filterCompanyId && a.company?.id !== filterCompanyId) return false;
+      if (filterContactId && a.contact?.id !== filterContactId) return false;
+      return true;
+    });
+  }, [activities, filterType, filterCompanyId, filterContactId]);
+
   const totalConverted = allActivitiesFlat.filter(a => a.deal).length;
   const conversionRate = allActivitiesFlat.length ? (totalConverted / allActivitiesFlat.length) * 100 : 0;
   const upcomingNextActions = allActivitiesFlat.filter(a => a.nextActionDate && new Date(a.nextActionDate) >= new Date()).length;
@@ -157,6 +207,12 @@ export default function ActivitiesPage() {
     if (!form.companyId) return contacts;
     return contacts.filter(c => c.companyId === form.companyId);
   }, [contacts, form.companyId]);
+
+  // Contacts available in filter (optionally scoped to selected company)
+  const filterContactOptions = useMemo(() => {
+    if (!filterCompanyId) return contacts;
+    return contacts.filter(c => c.companyId === filterCompanyId);
+  }, [contacts, filterCompanyId]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -255,6 +311,8 @@ export default function ActivitiesPage() {
     load();
   };
 
+  const hasActiveFilters = filterType !== "ALL" || filterCompanyId || filterContactId;
+
   return (
     <div className="p-8 space-y-6 animate-in">
       <div className="flex items-center justify-between">
@@ -278,7 +336,7 @@ export default function ActivitiesPage() {
           <div className="text-2xl font-semibold text-white">{activities.length}</div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Pipeline'a Dönüşen</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Pipeline&apos;a Dönüşen</div>
           <div className="text-2xl font-semibold text-white">{totalConverted}</div>
         </div>
         <div className="glass rounded-xl p-4">
@@ -291,28 +349,78 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="text-xs uppercase tracking-wide flex items-center gap-1" style={{ color: "var(--muted)" }}>
-          <Filter size={12} /> Filtrele
+      {/* Filters */}
+      <div className="glass rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="text-xs uppercase tracking-wide flex items-center gap-1.5" style={{ color: "var(--muted)" }}>
+            <Filter size={12} /> Filtrele
+          </div>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <button
+                className="text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
+                style={{ color: "var(--muted)" }}
+                onClick={() => { setFilterType("ALL"); setFilterCompanyId(""); setFilterContactId(""); }}
+              >
+                Temizle
+              </button>
+            )}
+            {parentIds.length > 0 && (
+              <button
+                className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all hover:bg-white/5"
+                style={{ color: "var(--muted)", borderColor: "rgba(255,255,255,0.08)" }}
+                onClick={toggleCollapseAll}
+              >
+                <ChevronsUpDown size={12} />
+                {allCollapsed ? "Tümünü Aç" : "Tümünü Kapat"}
+              </button>
+            )}
+          </div>
         </div>
-        {(["ALL", ...TYPE_OPTIONS.map(o => o.value)] as string[]).map(type => {
-          const data = TYPE_OPTIONS.find(o => o.value === type);
-          const active = filterType === type;
-          return (
-            <button
-              key={type}
-              onClick={() => setFilterType(type)}
-              className="text-xs px-3 py-1.5 rounded-full border transition-all"
-              style={{
-                background: active ? data?.bg || "rgba(255,255,255,0.1)" : "transparent",
-                color: active ? data?.accent || "var(--muted)" : "var(--muted)",
-                borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "rgba(255,255,255,0.08)",
-              }}
-            >
-              {type === "ALL" ? "Tümü" : data?.label}
-            </button>
-          );
-        })}
+
+        {/* Type pills */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {(["ALL", ...TYPE_OPTIONS.map(o => o.value)] as string[]).map(type => {
+            const data = TYPE_OPTIONS.find(o => o.value === type);
+            const active = filterType === type;
+            return (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                style={{
+                  background: active ? data?.bg || "rgba(255,255,255,0.1)" : "transparent",
+                  color: active ? data?.accent || "white" : "var(--muted)",
+                  borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "rgba(255,255,255,0.08)",
+                }}
+              >
+                {type === "ALL" ? "Tümü" : data?.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Company + Contact dropdowns */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            className="text-xs py-1.5"
+            style={{ minWidth: 160 }}
+            value={filterCompanyId}
+            onChange={e => { setFilterCompanyId(e.target.value); setFilterContactId(""); }}
+          >
+            <option value="">🏢 Tüm Şirketler</option>
+            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select
+            className="text-xs py-1.5"
+            style={{ minWidth: 160 }}
+            value={filterContactId}
+            onChange={e => setFilterContactId(e.target.value)}
+          >
+            <option value="">👤 Tüm Kişiler</option>
+            {filterContactOptions.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -324,6 +432,8 @@ export default function ActivitiesPage() {
             onDelete={id => setShowDeleteConfirm(id)}
             onConvert={openConvertModal}
             onAddChild={openAddChild}
+            collapsed={collapsedIds.has(activity.id)}
+            onToggleCollapse={toggleCollapse}
           />
         ))}
       </div>
@@ -331,8 +441,10 @@ export default function ActivitiesPage() {
       {filteredActivities.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <Plus size={28} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
-          <div className="text-sm text-white mb-1">Henüz aktivite yok</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>Toplantı, telefon veya not ekleyerek takibi başlat</div>
+          <div className="text-sm text-white mb-1">Aktivite bulunamadı</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>
+            {hasActiveFilters ? "Filtreleri temizleyerek tüm aktiviteleri görebilirsiniz." : "Toplantı, telefon veya not ekleyerek takibi başlat"}
+          </div>
         </div>
       )}
 
