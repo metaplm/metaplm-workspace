@@ -49,6 +49,9 @@ model Activity {
   contact        Contact?     @relation(fields: [contactId], references: [id])
   dealId         String?
   deal           Deal?        @relation(fields: [dealId], references: [id])
+  parentId       String?
+  parent         Activity?    @relation("ActivityChildren", fields: [parentId], references: [id])
+  children       Activity[]   @relation("ActivityChildren")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }

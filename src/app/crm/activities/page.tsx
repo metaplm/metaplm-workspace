@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2 } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Activity {
@@ -10,9 +10,11 @@ interface Activity {
   notes?: string;
   nextActionDate?: string;
   createdAt: string;
+  parentId?: string | null;
   company?: { id: string; name: string } | null;
   contact?: { id: string; firstName: string; lastName: string } | null;
   deal?: { id: string; title: string } | null;
+  children?: Activity[];
 }
 
 interface Company { id: string; name: string; }
@@ -32,7 +34,91 @@ const EMPTY_ACTIVITY = {
   createdAt: new Date().toISOString().slice(0, 10),
   companyId: "",
   contactId: "",
+  parentId: "",
 };
+
+function ActivityCard({
+  activity,
+  onEdit,
+  onDelete,
+  onConvert,
+  onAddChild,
+  isChild = false,
+}: {
+  activity: Activity;
+  onEdit: (a: Activity) => void;
+  onDelete: (id: string) => void;
+  onConvert: (a: Activity) => void;
+  onAddChild: (a: Activity) => void;
+  isChild?: boolean;
+}) {
+  const typeMeta = TYPE_OPTIONS.find(t => t.value === activity.type);
+  return (
+    <div className={isChild ? "ml-6 border-l-2 pl-4" : ""} style={isChild ? { borderColor: "rgba(255,255,255,0.1)" } : {}}>
+      <div className="glass rounded-xl p-4 flex flex-col gap-2 relative group">
+        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+          <button
+            onClick={() => onAddChild(activity)}
+            className="p-1.5 rounded-lg hover:bg-indigo-500/20 flex items-center gap-1 text-xs"
+            style={{ color: "var(--muted)" }}
+            title="Devam ekle"
+          >
+            <GitBranch size={13} />
+          </button>
+          <button onClick={() => onEdit(activity)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+          <button onClick={() => onDelete(activity.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: typeMeta?.accent, background: typeMeta?.bg }}>
+              {typeMeta?.label}
+            </span>
+            <span className="text-xs" style={{ color: "var(--muted)" }}>
+              {new Date(activity.createdAt).toLocaleDateString()}
+            </span>
+            {(activity.children?.length ?? 0) > 0 && (
+              <span className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ color: "#a5b4fc", background: "rgba(99,102,241,0.12)" }}>
+                <GitBranch size={10} /> {activity.children!.length} devam
+              </span>
+            )}
+          </div>
+          {activity.deal ? (
+            <span className="text-xs flex items-center gap-1" style={{ color: "#a5b4fc" }}>
+              <ArrowRight size={12} /> {activity.deal.title}
+            </span>
+          ) : (
+            <button className="btn-ghost text-xs" onClick={() => onConvert(activity)}>
+              Pipeline&apos;a Çevir
+            </button>
+          )}
+        </div>
+        {activity.notes && <p className="text-sm text-white/90">{activity.notes}</p>}
+        <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--muted)" }}>
+          {activity.company && <span>🏢 {activity.company.name}</span>}
+          {activity.contact && <span>👤 {activity.contact.firstName} {activity.contact.lastName}</span>}
+          {activity.nextActionDate && (
+            <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString()}</span>
+          )}
+        </div>
+      </div>
+      {activity.children && activity.children.length > 0 && (
+        <div className="space-y-2 mt-2">
+          {activity.children.map(child => (
+            <ActivityCard
+              key={child.id}
+              activity={child}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onConvert={onConvert}
+              onAddChild={onAddChild}
+              isChild
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ActivitiesPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -55,10 +141,17 @@ export default function ActivitiesPage() {
 
   useEffect(() => { load(); }, []);
 
-  const filteredActivities = filterType === "ALL" ? activities : activities.filter(a => a.type === filterType);
-  const totalConverted = activities.filter(a => a.deal).length;
-  const conversionRate = activities.length ? (totalConverted / activities.length) * 100 : 0;
-  const upcomingNextActions = activities.filter(a => a.nextActionDate && new Date(a.nextActionDate) >= new Date()).length;
+  const allActivitiesFlat = useMemo(() => {
+    const flat: Activity[] = [];
+    const collect = (list: Activity[]) => { list.forEach(a => { flat.push(a); if (a.children) collect(a.children); }); };
+    collect(activities);
+    return flat;
+  }, [activities]);
+
+  const filteredActivities = filterType === "ALL" ? activities : activities.filter(a => a.type === filterType || a.children?.some(c => c.type === filterType));
+  const totalConverted = allActivitiesFlat.filter(a => a.deal).length;
+  const conversionRate = allActivitiesFlat.length ? (totalConverted / allActivitiesFlat.length) * 100 : 0;
+  const upcomingNextActions = allActivitiesFlat.filter(a => a.nextActionDate && new Date(a.nextActionDate) >= new Date()).length;
 
   const contactOptions = useMemo(() => {
     if (!form.companyId) return contacts;
@@ -75,6 +168,7 @@ export default function ActivitiesPage() {
     };
     if (form.companyId) payload.companyId = form.companyId;
     if (form.contactId) payload.contactId = form.contactId;
+    if (form.parentId) payload.parentId = form.parentId;
 
     try {
       if (editingId) {
@@ -113,6 +207,7 @@ export default function ActivitiesPage() {
       createdAt: activity.createdAt ? activity.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
       companyId: activity.company?.id || "",
       contactId: activity.contact?.id || "",
+      parentId: activity.parentId || "",
     });
     setEditingId(activity.id);
     setShowModal(true);
@@ -120,6 +215,18 @@ export default function ActivitiesPage() {
 
   const openAdd = () => {
     setForm({ ...EMPTY_ACTIVITY, createdAt: new Date().toISOString().slice(0, 10) });
+    setEditingId(null);
+    setShowModal(true);
+  };
+
+  const openAddChild = (parent: Activity) => {
+    setForm({
+      ...EMPTY_ACTIVITY,
+      createdAt: new Date().toISOString().slice(0, 10),
+      companyId: parent.company?.id || "",
+      contactId: parent.contact?.id || "",
+      parentId: parent.id,
+    });
     setEditingId(null);
     setShowModal(true);
   };
@@ -209,47 +316,16 @@ export default function ActivitiesPage() {
       </div>
 
       <div className="space-y-3">
-        {filteredActivities.map(activity => {
-          const typeMeta = TYPE_OPTIONS.find(t => t.value === activity.type);
-          return (
-            <div key={activity.id} className="glass rounded-xl p-4 flex flex-col gap-2 relative group">
-              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                <button onClick={() => openEdit(activity)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
-                <button onClick={() => setShowDeleteConfirm(activity.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ color: typeMeta?.accent, background: typeMeta?.bg }}
-                  >
-                    {typeMeta?.label}
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--muted)" }}>
-                    {new Date(activity.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {activity.deal ? (
-                  <span className="text-xs flex items-center gap-1" style={{ color: "#a5b4fc" }}>
-                    <ArrowRight size={12} /> {activity.deal.title}
-                  </span>
-                ) : (
-                  <button className="btn-ghost text-xs" onClick={() => openConvertModal(activity)}>
-                    Pipeline'a Çevir
-                  </button>
-                )}
-              </div>
-              {activity.notes && <p className="text-sm text-white/90">{activity.notes}</p>}
-              <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--muted)" }}>
-                {activity.company && <span>🏢 {activity.company.name}</span>}
-                {activity.contact && <span>👤 {activity.contact.firstName} {activity.contact.lastName}</span>}
-                {activity.nextActionDate && (
-                  <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString()}</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {filteredActivities.map(activity => (
+          <ActivityCard
+            key={activity.id}
+            activity={activity}
+            onEdit={openEdit}
+            onDelete={id => setShowDeleteConfirm(id)}
+            onConvert={openConvertModal}
+            onAddChild={openAddChild}
+          />
+        ))}
       </div>
 
       {filteredActivities.length === 0 && (
@@ -264,9 +340,16 @@ export default function ActivitiesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-white">{editingId ? "Aktivite Düzenle" : "Yeni Aktivite"}</h2>
+              <h2 className="text-base font-semibold text-white">
+                {editingId ? "Aktivite Düzenle" : form.parentId ? "Devam Aktivitesi Ekle" : "Yeni Aktivite"}
+              </h2>
               <button className="btn-ghost text-xs" onClick={() => setShowModal(false)}>Kapat</button>
             </div>
+            {form.parentId && !editingId && (
+              <div className="text-xs px-3 py-2 rounded-lg flex items-center gap-2" style={{ background: "rgba(99,102,241,0.12)", color: "#a5b4fc" }}>
+                <GitBranch size={12} /> Bu aktivite bir öncekinin devamı olarak kaydedilecek
+              </div>
+            )}
 
             <div className="flex gap-2 flex-wrap">
               {TYPE_OPTIONS.map(option => (

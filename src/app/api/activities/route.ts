@@ -12,8 +12,17 @@ export async function GET(req: NextRequest) {
     where: {
       ...(companyId ? { companyId } : {}),
       ...(contactId ? { contactId } : {}),
+      parentId: null,
     },
-    include: { company: true, contact: true, deal: true },
+    include: {
+      company: true,
+      contact: true,
+      deal: true,
+      children: {
+        include: { company: true, contact: true, deal: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(activities);
@@ -25,6 +34,7 @@ export async function POST(req: NextRequest) {
     data: {
       ...body,
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
+      parentId: body.parentId || null,
     },
     include: { company: true, contact: true },
   });
