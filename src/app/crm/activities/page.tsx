@@ -68,7 +68,7 @@ function ActivityCard({
           <button onClick={() => onEdit(activity)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
           <button onClick={() => onDelete(activity.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pr-24">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: typeMeta?.accent, background: typeMeta?.bg }}>
               {typeMeta?.label}
