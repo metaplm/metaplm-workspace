@@ -413,8 +413,8 @@ export default function ExpensesPage() {
       {/* Filters */}
       <div className="glass rounded-xl p-3 space-y-3">
         {/* Search + Month */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="relative flex-1 min-w-[220px] lg:min-w-[320px] max-w-[520px]">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
             <input
               value={search}
@@ -423,28 +423,30 @@ export default function ExpensesPage() {
               className="text-sm pl-8 w-full"
             />
           </div>
-          <select
-            value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-            className="text-sm"
-            style={{ minWidth: 140 }}
-          >
-            <option value="">Tüm aylar</option>
-            {availableMonths.map(m => {
-              const [y, mo] = m.split("-");
-              const label = new Date(Number(y), Number(mo) - 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
-              return <option key={m} value={m}>{label}</option>;
-            })}
-          </select>
-          {hasFilters && (
-            <button
-              onClick={() => { setSearch(""); setFilterCats([]); setFilterMonth(""); }}
-              className="text-xs px-3 rounded-lg"
-              style={{ background: "rgba(239,68,68,0.12)", color: "#f87171" }}
+          <div className="flex gap-2 items-center lg:justify-end">
+            <select
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+              className="text-sm shrink-0"
+              style={{ width: 140 }}
             >
-              Temizle
-            </button>
-          )}
+              <option value="">Tüm aylar</option>
+              {availableMonths.map(m => {
+                const [y, mo] = m.split("-");
+                const label = new Date(Number(y), Number(mo) - 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
+                return <option key={m} value={m}>{label}</option>;
+              })}
+            </select>
+            {hasFilters && (
+              <button
+                onClick={() => { setSearch(""); setFilterCats([]); setFilterMonth(""); }}
+                className="text-xs px-3 rounded-lg shrink-0"
+                style={{ background: "rgba(239,68,68,0.12)", color: "#f87171" }}
+              >
+                Temizle
+              </button>
+            )}
+          </div>
         </div>
         {/* Category pills */}
         <div className="flex gap-1.5 flex-wrap">

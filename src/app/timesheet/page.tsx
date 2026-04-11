@@ -215,26 +215,33 @@ export default function TimesheetPage() {
 
                 {/* Hours badge */}
                 {hours > 0 && (
-                  <div className={`text-xs font-bold rounded-full px-1.5 py-0.5 mb-1 w-fit ${
-                    status === "optimal" ? "text-emerald-900 dark:text-emerald-100" :
-                    status === "overtime" ? "text-orange-900 dark:text-orange-100" : "text-amber-900 dark:text-amber-100"
-                  }`} style={{
-                    background: status === "optimal" ? "rgba(16,185,129,0.35)" :
-                               status === "overtime" ? "rgba(249,115,22,0.35)" : "rgba(245,158,11,0.35)"
-                  }}>
+                  <div
+                    className="text-xs font-bold rounded-full px-1.5 py-0.5 mb-1 w-fit"
+                    style={{
+                      background: status === "optimal" ? "rgba(16,185,129,0.35)" :
+                                 status === "overtime" ? "rgba(249,115,22,0.35)" : "rgba(245,158,11,0.35)",
+                      color: "#f8fafc"
+                    }}
+                  >
                     {formatHours(hours)}
                   </div>
                 )}
 
                 {/* Entry pills */}
                 <div className="space-y-0.5">
-                  {dayEntries.slice(0, 2).map(e => (
-                    <div key={e.id} className={`text-xs truncate rounded px-1 py-0.5 font-medium ${
-                      e.billable ? "text-indigo-900 dark:text-indigo-100" : "text-slate-900 dark:text-slate-100"
-                    }`} style={{ background: e.billable ? "rgba(99,102,241,0.35)" : "rgba(100,116,139,0.35)", fontSize: "10px" }}>
-                      {e.company?.name || e.project?.name || e.category}
-                    </div>
-                  ))}
+                  {dayEntries.slice(0, 2).map(e => {
+                    const chipBg = e.billable ? "rgba(99,102,241,0.35)" : "rgba(100,116,139,0.35)";
+                    const chipText = e.billable ? "#e0e7ff" : "#f1f5f9";
+                    return (
+                      <div
+                        key={e.id}
+                        className="text-xs truncate rounded px-1 py-0.5 font-medium"
+                        style={{ background: chipBg, color: chipText, fontSize: "10px" }}
+                      >
+                        {e.company?.name || e.project?.name || e.category}
+                      </div>
+                    );
+                  })}
                   {dayEntries.length > 2 && <div className="text-xs" style={{ color: "var(--muted)", fontSize: "10px" }}>+{dayEntries.length - 2} more</div>}
                 </div>
 
