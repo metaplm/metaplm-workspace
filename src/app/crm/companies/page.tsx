@@ -11,11 +11,12 @@ interface Company {
   logoUrl?: string;
   description?: string;
   linkedinUrl?: string;
+  nda?: boolean;
   contacts: Array<{ id: string }>;
   deals: Array<{ id: string; amount: number; stage: string }>;
 }
 
-const EMPTY = { name: "", website: "", logoUrl: "", description: "", linkedinUrl: "" };
+const EMPTY = { name: "", website: "", logoUrl: "", description: "", linkedinUrl: "", nda: false };
 
 export default function CompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -74,6 +75,7 @@ export default function CompaniesPage() {
       logoUrl: company.logoUrl || "",
       description: company.description || "",
       linkedinUrl: company.linkedinUrl || "",
+      nda: company.nda || false,
     });
     setEditingId(company.id);
     setShowModal(true);
@@ -160,12 +162,26 @@ export default function CompaniesPage() {
               {[["Company Name *", "name", "Acme Corp"], ["Website", "website", "https://acme.com"], ["Logo URL", "logoUrl", "https://..."], ["LinkedIn URL", "linkedinUrl", "https://linkedin.com/company/..."]].map(([label, key, ph]) => (
                 <div key={key}>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>{label}</label>
-                  <input placeholder={ph} value={form[key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="text-sm" />
+                  <input placeholder={ph} value={form[key as keyof typeof form] as string} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="text-sm" />
                 </div>
               ))}
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Description</label>
                 <textarea rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="text-sm resize-none" placeholder="What does this company do?" />
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <label className="text-xs font-medium" style={{ color: "var(--muted)" }}>Gizlilik Anlaşması</label>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, nda: !f.nda }))}
+                  className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                  style={{ background: form.nda ? "#6366f1" : "rgba(255,255,255,0.1)" }}
+                >
+                  <span
+                    className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                    style={{ transform: form.nda ? "translateX(20px)" : "translateX(2px)" }}
+                  />
+                </button>
               </div>
             </div>
             {form.logoUrl && <div className="mt-3 flex items-center gap-2"><img src={form.logoUrl} alt="" className="w-8 h-8 object-contain rounded" /><span className="text-xs" style={{ color: "var(--muted)" }}>Logo preview</span></div>}

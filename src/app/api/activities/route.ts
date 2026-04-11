@@ -32,11 +32,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const activity = await prisma.activity.create({
     data: {
-      ...body,
+      type: body.type,
+      notes: body.notes,
+      nextActionDate: body.nextActionDate ? new Date(body.nextActionDate) : null,
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
+      source: body.source || null,
+      companyId: body.companyId || null,
+      contactId: body.contactId || null,
       parentId: body.parentId || null,
+      rootActivityId: body.rootActivityId || null,
     },
-    include: { company: true, contact: true },
+    include: { company: true, contact: true, rootActivity: true },
   });
   return NextResponse.json(activity, { status: 201 });
 }

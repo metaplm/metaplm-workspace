@@ -10,10 +10,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       notes: body.notes,
       nextActionDate: body.nextActionDate ? new Date(body.nextActionDate) : null,
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
+      source: body.source || null,
       companyId: body.companyId || null,
       contactId: body.contactId || null,
+      rootActivityId: body.rootActivityId || null,
     },
-    include: { company: true, contact: true, deal: true },
+    include: { company: true, contact: true, deal: true, rootActivity: true },
   });
   return NextResponse.json(activity);
 }

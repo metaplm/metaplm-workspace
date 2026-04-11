@@ -11,7 +11,10 @@ interface Activity {
   notes?: string;
   nextActionDate?: string;
   createdAt: string;
+  source?: string | null;
   parentId?: string | null;
+  rootActivityId?: string | null;
+  rootActivity?: { id: string; notes?: string } | null;
   company?: { id: string; name: string } | null;
   contact?: { id: string; firstName: string; lastName: string } | null;
   deal?: { id: string; title: string } | null;
@@ -33,9 +36,11 @@ const EMPTY_ACTIVITY = {
   notes: "",
   nextActionDate: "",
   createdAt: new Date().toISOString().slice(0, 10),
+  source: "",
   companyId: "",
   contactId: "",
   parentId: "",
+  rootActivityId: "",
 };
 
 function ActivityCard({
@@ -230,6 +235,8 @@ export default function ActivitiesPage() {
     if (form.companyId) payload.companyId = form.companyId;
     if (form.contactId) payload.contactId = form.contactId;
     if (form.parentId) payload.parentId = form.parentId;
+    if (form.source) payload.source = form.source;
+    if (form.rootActivityId) payload.rootActivityId = form.rootActivityId;
 
     try {
       if (editingId) {
@@ -266,9 +273,11 @@ export default function ActivitiesPage() {
       notes: activity.notes || "",
       nextActionDate: activity.nextActionDate ? activity.nextActionDate.slice(0, 10) : "",
       createdAt: activity.createdAt ? activity.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      source: activity.source || "",
       companyId: activity.company?.id || "",
       contactId: activity.contact?.id || "",
       parentId: activity.parentId || "",
+      rootActivityId: activity.rootActivityId || "",
     });
     setEditingId(activity.id);
     setShowModal(true);
@@ -287,6 +296,8 @@ export default function ActivitiesPage() {
       companyId: parent.company?.id || "",
       contactId: parent.contact?.id || "",
       parentId: parent.id,
+      source: "",
+      rootActivityId: "",
     });
     setEditingId(null);
     setShowModal(true);
@@ -509,6 +520,39 @@ export default function ActivitiesPage() {
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Sonraki Aksiyon</label>
                 <input type="date" className="text-sm" value={form.nextActionDate} onChange={e => setForm(f => ({ ...f, nextActionDate: e.target.value }))} />
+              </div>
+
+              {!form.parentId && (
+                <div>
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Kaynak</label>
+                  <input
+                    type="text"
+                    className="text-sm"
+                    value={form.source}
+                    onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
+                    placeholder="Örn: LinkedIn, Referans, Web..."
+                    list="sources-list"
+                  />
+                  <datalist id="sources-list">
+                    {Array.from(new Set(activities.map(a => a.source).filter((s): s is string => !!s))).map(src => (
+                      <option key={src} value={src} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Root Aktivite</label>
+                <select className="text-sm" value={form.rootActivityId} onChange={e => setForm(f => ({ ...f, rootActivityId: e.target.value }))}>
+                  <option value="">— Seçilmedi —</option>
+                  {activities
+                    .filter(a => !a.parentId && a.id !== editingId)
+                    .map(activity => (
+                      <option key={activity.id} value={activity.id}>
+                        {activity.notes?.slice(0, 50) || `${activity.type} - ${activity.company?.name || "Bilinmiyor"}`}
+                      </option>
+                    ))}
+                </select>
               </div>
 
             </div>
