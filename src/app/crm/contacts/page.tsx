@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2, Sparkles, AlertCircle } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Contact {
@@ -28,6 +28,10 @@ export default function ContactsPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [scrapeInput, setScrapeInput] = useState("");
+  const [scrapeMode, setScrapeMode] = useState<"url" | "text">("text");
+  const [scraping, setScraping] = useState(false);
+  const [scrapeError, setScrapeError] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -78,7 +82,52 @@ export default function ContactsPage() {
   const openAdd = () => {
     setForm({ ...EMPTY });
     setEditingId(null);
+    setScrapeInput("");
+    setScrapeError("");
     setShowModal(true);
+  };
+
+  const scrapeContact = async () => {
+    if (!scrapeInput.trim()) return;
+    setScraping(true);
+    setScrapeError("");
+    const body = scrapeMode === "url"
+      ? { url: scrapeInput.trim() }
+      : { text: scrapeInput.trim() };
+    try {
+      const res = await fetch("/api/scrape/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setScrapeError(data.error || "Scrape başarısız oldu.");
+        return;
+      }
+      // Auto-fill form fields with scraped data
+      setForm(f => ({
+        ...f,
+        firstName: data.firstName || f.firstName,
+        lastName: data.lastName || f.lastName,
+        title: data.title || f.title,
+        email: data.email || f.email,
+        phone: data.phone || f.phone,
+        linkedinUrl: data.linkedinUrl || f.linkedinUrl,
+      }));
+      // If company name found, try to match existing company
+      if (data.companyName) {
+        const match = companies.find(c =>
+          c.name.toLowerCase().includes(data.companyName.toLowerCase()) ||
+          data.companyName.toLowerCase().includes(c.name.toLowerCase())
+        );
+        if (match) setForm(f => ({ ...f, companyId: match.id }));
+      }
+    } catch {
+      setScrapeError("Bağlantı hatası.");
+    } finally {
+      setScraping(false);
+    }
   };
 
   const filtered = contacts.filter(c =>
@@ -153,6 +202,76 @@ export default function ContactsPage() {
               <h2 className="text-base font-semibold text-white">{editingId ? "Edit Contact" : "Add Contact"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
+
+            {/* Scrape section */}
+            {!editingId && (
+              <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-medium" style={{ color: "#a5b4fc" }}>
+                    <Sparkles size={12} /> AI ile otomatik doldur
+                  </div>
+                  <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: "1px solid rgba(99,102,241,0.3)" }}>
+                    <button
+                      onClick={() => { setScrapeMode("text"); setScrapeInput(""); setScrapeError(""); }}
+                      className="px-2.5 py-1 transition-colors"
+                      style={{ background: scrapeMode === "text" ? "rgba(99,102,241,0.4)" : "transparent", color: scrapeMode === "text" ? "white" : "var(--muted)" }}
+                    >
+                      Metin yapıştır
+                    </button>
+                    <button
+                      onClick={() => { setScrapeMode("url"); setScrapeInput(""); setScrapeError(""); }}
+                      className="px-2.5 py-1 transition-colors"
+                      style={{ background: scrapeMode === "url" ? "rgba(99,102,241,0.4)" : "transparent", color: scrapeMode === "url" ? "white" : "var(--muted)" }}
+                    >
+                      URL
+                    </button>
+                  </div>
+                </div>
+
+                {scrapeMode === "text" ? (
+                  <textarea
+                    rows={3}
+                    value={scrapeInput}
+                    onChange={e => { setScrapeInput(e.target.value); setScrapeError(""); }}
+                    className="text-sm w-full"
+                    placeholder={"LinkedIn profilinden kopyaladığınız metni buraya yapıştırın...\n(Profil sayfasını Ctrl+A → Ctrl+C ile kopyalayabilirsiniz)"}
+                    disabled={scraping}
+                  />
+                ) : (
+                  <input
+                    value={scrapeInput}
+                    onChange={e => { setScrapeInput(e.target.value); setScrapeError(""); }}
+                    onKeyDown={e => e.key === "Enter" && scrapeContact()}
+                    className="text-sm w-full"
+                    placeholder="https://... (LinkedIn dışı siteler için)"
+                    disabled={scraping}
+                  />
+                )}
+
+                <button
+                  onClick={scrapeContact}
+                  disabled={scraping || !scrapeInput.trim()}
+                  className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"
+                  style={{ opacity: scraping || !scrapeInput.trim() ? 0.6 : 1 }}
+                >
+                  {scraping ? (
+                    <>
+                      <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Analiz ediliyor...
+                    </>
+                  ) : (
+                    <><Sparkles size={12} /> Bilgileri Çıkar</>
+                  )}
+                </button>
+
+                {scrapeError && (
+                  <div className="flex items-center gap-1.5 text-xs" style={{ color: "#f87171" }}>
+                    <AlertCircle size={12} /> {scrapeError}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>

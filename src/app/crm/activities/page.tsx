@@ -31,6 +31,8 @@ const TYPE_OPTIONS = [
   { value: "NOTE", label: "Not / Sohbet", accent: "#94a3b8", bg: "rgba(148,163,184,0.18)" },
 ] as const;
 
+const NOTES_LIMIT = 200;
+
 const EMPTY_ACTIVITY = {
   type: "MEETING" as Activity["type"],
   notes: "",
@@ -62,20 +64,28 @@ function ActivityCard({
   collapsed: boolean;
   onToggleCollapse: (id: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const typeMeta = TYPE_OPTIONS.find(t => t.value === activity.type);
   const hasChildren = (activity.children?.length ?? 0) > 0;
   const isRootActivity = !activity.parentId;
 
+  const notesText = activity.notes || "";
+  const isTruncated = notesText.length > NOTES_LIMIT;
+  const displayNotes = isTruncated && !expanded ? notesText.slice(0, NOTES_LIMIT) + "…" : notesText;
+
+  const company = activity.company;
+
   return (
     <div className={isChild ? "ml-6 border-l-2 pl-4" : ""} style={isChild ? { borderColor: "rgba(255,255,255,0.1)" } : {}}>
-      <div 
+      <div
         className="glass rounded-xl p-4 flex flex-col gap-2 relative group"
-        style={isRootActivity && !isChild ? { 
+        style={isRootActivity && !isChild ? {
           background: "rgba(99,102,241,0.08)",
           borderColor: "rgba(99,102,241,0.3)",
           borderWidth: "1px"
         } : {}}
       >
+        {/* Actions */}
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
           <button
             onClick={() => onAddChild(activity)}
@@ -88,6 +98,18 @@ function ActivityCard({
           <button onClick={() => onEdit(activity)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
           <button onClick={() => onDelete(activity.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
         </div>
+
+        {/* Company header */}
+        {company && (
+          <div className="flex items-center gap-2 pr-24">
+            {company.logoUrl && (
+              <img src={company.logoUrl} alt={company.name} className="w-6 h-6 object-contain rounded" />
+            )}
+            <span className="text-sm font-medium text-white/90">{company.name}</span>
+          </div>
+        )}
+
+        {/* Type + date + deal row */}
         <div className="flex items-center justify-between pr-24">
           <div className="flex items-center gap-2">
             {hasChildren && (
@@ -122,19 +144,29 @@ function ActivityCard({
             </button>
           )}
         </div>
-        {activity.notes && <p className="text-sm text-white/90">{activity.notes}</p>}
+
+        {/* Notes with truncation */}
+        {notesText && (
+          <div>
+            <p className="text-sm text-white/90">{displayNotes}</p>
+            {isTruncated && (
+              <button
+                className="text-xs mt-1 hover:underline"
+                style={{ color: "#a5b4fc" }}
+                onClick={() => setExpanded(e => !e)}
+              >
+                {expanded ? "Daha az göster" : "Daha fazla göster"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
         <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--muted)" }}>
-          {isRootActivity && !isChild && activity.company && (
-            <div className="flex items-center gap-2">
-              {activity.company.logoUrl && (
-                <img src={activity.company.logoUrl} alt={activity.company.name} className="w-5 h-5 object-contain rounded" />
-              )}
-              <span>🏢 {activity.company.name}</span>
-            </div>
-          )}
-          {!isRootActivity && activity.company && <span>🏢 {activity.company.name}</span>}
           {activity.contact && <span>👤 {activity.contact.firstName} {activity.contact.lastName}</span>}
-          {activity.source && isRootActivity && !isChild && <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>📌 {activity.source}</span>}
+          {activity.source && isRootActivity && !isChild && (
+            <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>📌 {activity.source}</span>
+          )}
           {activity.nextActionDate && (
             <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString()}</span>
           )}
