@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       contactId: body.contactId || null,
       rootActivityId: body.rootActivityId || null,
     },
-    include: { company: true, contact: true, deal: true, rootActivity: true },
+    include: { company: true, contact: true, deal: true, rootActivity: { include: { company: true } } },
   });
   return NextResponse.json(activity);
 }

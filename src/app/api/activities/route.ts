@@ -18,8 +18,9 @@ export async function GET(req: NextRequest) {
       company: true,
       contact: true,
       deal: true,
+      rootActivity: { include: { company: true } },
       children: {
-        include: { company: true, contact: true, deal: true },
+        include: { company: true, contact: true, deal: true, rootActivity: { include: { company: true } } },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
       parentId: body.parentId || null,
       rootActivityId: body.rootActivityId || null,
     },
-    include: { company: true, contact: true, rootActivity: true },
+    include: { company: true, contact: true, rootActivity: { include: { company: true } } },
   });
   return NextResponse.json(activity, { status: 201 });
 }
