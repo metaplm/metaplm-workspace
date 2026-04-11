@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -26,10 +27,14 @@ export default function ContactsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
-    fetch("/api/contacts").then(r => r.json()).then(setContacts);
-    fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    setLoading(true);
+    Promise.all([
+      fetch("/api/contacts").then(r => r.json()).then(setContacts),
+      fetch("/api/companies").then(r => r.json()).then(setCompanies),
+    ]).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -132,7 +137,8 @@ export default function ContactsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {loading && <LoadingRows />}
+      {!loading && filtered.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <User size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">No contacts yet</div>

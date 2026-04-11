@@ -1,6 +1,7 @@
 
 "use client";
 import { useEffect, useState } from "react";
+import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, FileText, X, AlertCircle, CheckCircle, Clock, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
@@ -38,10 +39,14 @@ export default function InvoicesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
-    fetch("/api/invoices").then(r => r.json()).then(setInvoices);
-    fetch("/api/deals").then(r => r.json()).then(setDeals);
+    setLoading(true);
+    Promise.all([
+      fetch("/api/invoices").then(r => r.json()).then(setInvoices),
+      fetch("/api/deals").then(r => r.json()).then(setDeals),
+    ]).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -173,7 +178,8 @@ export default function InvoicesPage() {
         })}
       </div>
 
-      {invoices.length === 0 && (
+      {loading && <LoadingRows />}
+      {!loading && invoices.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <FileText size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">No invoices yet</div>

@@ -1,6 +1,7 @@
 
 "use client";
 import { useEffect, useState } from "react";
+import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, TrendingUp, X, DollarSign, Calendar, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
@@ -33,10 +34,14 @@ export default function DealsPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState("ALL");
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
-    fetch("/api/deals").then(r => r.json()).then(setDeals);
-    fetch("/api/companies").then(r => r.json()).then(setCompanies);
+    setLoading(true);
+    Promise.all([
+      fetch("/api/deals").then(r => r.json()).then(setDeals),
+      fetch("/api/companies").then(r => r.json()).then(setCompanies),
+    ]).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
@@ -163,7 +168,8 @@ export default function DealsPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {loading && <LoadingRows />}
+      {!loading && filtered.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <TrendingUp size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">No deals yet</div>

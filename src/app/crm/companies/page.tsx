@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -26,8 +27,12 @@ export default function CompaniesPage() {
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scraping, setScraping] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const load = () => fetch("/api/companies").then(r => r.json()).then(setCompanies);
+  const load = () => {
+    setLoading(true);
+    fetch("/api/companies").then(r => r.json()).then(setCompanies).finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, []);
 
   const scrape = async () => {
@@ -124,7 +129,8 @@ export default function CompaniesPage() {
         ))}
       </div>
 
-      {filtered.length === 0 && (
+      {loading && <LoadingRows />}
+      {!loading && filtered.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <Building2 size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">No companies yet</div>

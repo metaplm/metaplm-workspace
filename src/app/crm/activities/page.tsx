@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -153,11 +154,15 @@ export default function ActivitiesPage() {
   const [saving, setSaving] = useState(false);
   const [convertTarget, setConvertTarget] = useState<Activity | null>(null);
   const [convertForm, setConvertForm] = useState({ title: "", amount: "", currency: "TRY" });
+  const [loading, setLoading] = useState(true);
 
   const load = () => {
-    fetch("/api/activities").then(r => r.json()).then(setActivities);
-    fetch("/api/companies").then(r => r.json()).then(setCompanies);
-    fetch("/api/contacts").then(r => r.json()).then(setContacts);
+    setLoading(true);
+    Promise.all([
+      fetch("/api/activities").then(r => r.json()).then(setActivities),
+      fetch("/api/companies").then(r => r.json()).then(setCompanies),
+      fetch("/api/contacts").then(r => r.json()).then(setContacts),
+    ]).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
@@ -438,7 +443,8 @@ export default function ActivitiesPage() {
         ))}
       </div>
 
-      {filteredActivities.length === 0 && (
+      {loading && <LoadingRows />}
+      {!loading && filteredActivities.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <Plus size={28} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
           <div className="text-sm text-white mb-1">Aktivite bulunamadı</div>
