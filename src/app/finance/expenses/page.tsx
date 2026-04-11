@@ -54,6 +54,9 @@ export default function ExpensesPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [total, setTotal] = useState(0);
+  const [lastBulkDate, setLastBulkDate] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("lastBulkImport") : null
+  );
 
   // Stats state (loaded on mount, lightweight)
   const [stats, setStats] = useState<Stats | null>(null);
@@ -260,6 +263,9 @@ export default function ExpensesPage() {
           body: JSON.stringify({ ...item, amount: Number(item.amount) }),
         });
       }
+      const now = new Date().toISOString();
+      localStorage.setItem("lastBulkImport", now);
+      setLastBulkDate(now);
       closeBulk();
       // Refresh stats and table
       fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
@@ -321,9 +327,16 @@ export default function ExpensesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="btn-ghost flex items-center gap-2 text-sm" onClick={openBulk}>
-            <Layers size={15} /> Bulk Ekle
-          </button>
+          <div className="flex flex-col items-end">
+            <button className="btn-ghost flex items-center gap-2 text-sm" onClick={openBulk}>
+              <Layers size={15} /> Bulk Ekle
+            </button>
+            {lastBulkDate && (
+              <span className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                Son: {new Date(lastBulkDate).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </div>
           <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
             <Plus size={15} /> Log Expense
           </button>
