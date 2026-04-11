@@ -14,8 +14,8 @@ interface Activity {
   source?: string | null;
   parentId?: string | null;
   rootActivityId?: string | null;
-  rootActivity?: { id: string; notes?: string } | null;
-  company?: { id: string; name: string } | null;
+  rootActivity?: { id: string; notes?: string; company?: { id: string; name: string; logoUrl?: string } | null } | null;
+  company?: { id: string; name: string; logoUrl?: string } | null;
   contact?: { id: string; firstName: string; lastName: string } | null;
   deal?: { id: string; title: string } | null;
   children?: Activity[];
