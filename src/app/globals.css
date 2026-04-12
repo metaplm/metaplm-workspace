@@ -6,24 +6,30 @@
   --bg: #011627;
   --surface: rgba(3, 20, 36, 0.92);
   --surface2: rgba(7, 32, 52, 0.9);
+  --bg-panel: #0b1929;
   --border: rgba(168, 209, 229, 0.18);
   --accent: #00d2d3;
   --accent2: #22d3ee;
   --accent-dark: #0267a0;
   --text: #e6f4ff;
   --muted: #7abbda;
+  --icon-bg: rgba(255, 255, 255, 0.05);
+  --badge-bg: rgba(255, 255, 255, 0.08);
 }
 
 [data-theme="light"] {
   --bg: #f0f5fa;
   --surface: #ffffff;
   --surface2: #e4eef8;
+  --bg-panel: #ffffff;
   --border: rgba(1, 70, 112, 0.18);
   --accent: #014570;
   --accent2: #0267a0;
   --accent-dark: #00d2d3;
   --text: #0f172a;
   --muted: #3b4a5c;
+  --icon-bg: rgba(1, 70, 112, 0.08);
+  --badge-bg: rgba(1, 70, 112, 0.08);
 }
 
 [data-theme="light"] body {

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2, Sparkles, AlertCircle } from "lucide-react";
+import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2, Sparkles, AlertCircle, LayoutGrid, List } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Contact {
@@ -32,6 +32,7 @@ export default function ContactsPage() {
   const [scrapeMode, setScrapeMode] = useState<"url" | "text">("text");
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState("");
+  const [view, setView] = useState<"card" | "list">("card");
 
   const load = () => {
     setLoading(true);
@@ -146,45 +147,124 @@ export default function ContactsPage() {
         </button>
       </div>
 
-      <div className="relative" style={{ maxWidth: 320 }}>
-        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
-        <input placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1" style={{ maxWidth: 320 }}>
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+          <input placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
+        </div>
+        <div className="flex rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }}>
+          <button
+            onClick={() => setView("card")}
+            className="p-2 transition-colors"
+            style={{ background: view === "card" ? "var(--surface2)" : "transparent", color: view === "card" ? "var(--text)" : "var(--muted)" }}
+            title="Kart görünümü"
+          >
+            <LayoutGrid size={15} />
+          </button>
+          <button
+            onClick={() => setView("list")}
+            className="p-2 transition-colors"
+            style={{ background: view === "list" ? "var(--surface2)" : "transparent", color: view === "list" ? "var(--text)" : "var(--muted)" }}
+            title="Liste görünümü"
+          >
+            <List size={15} />
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map(c => (
-          <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
-            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-              <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
-              <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
-            </div>
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
-                {c.firstName[0]}{c.lastName[0]}
+      {view === "card" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(c => (
+            <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
+              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+                <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
               </div>
-              <div className="flex-1 min-w-0 pr-12">
-                <div className="font-medium text-white text-sm truncate" title={`${c.firstName} ${c.lastName}`}>{c.firstName} {c.lastName}</div>
-                {c.title && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{c.title}</div>}
-                {c.company && (
-                  <div className="flex items-center gap-1 mt-1 truncate">
-                    <Building2 size={10} style={{ color: "var(--muted)" }} />
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
-                  </div>
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white" }}>
+                  {c.firstName[0]}{c.lastName[0]}
+                </div>
+                <div className="flex-1 min-w-0 pr-12">
+                  <div className="font-medium text-white text-sm truncate" title={`${c.firstName} ${c.lastName}`}>{c.firstName} {c.lastName}</div>
+                  {c.title && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{c.title}</div>}
+                  {c.company && (
+                    <div className="flex items-center gap-1 mt-1 truncate">
+                      <Building2 size={10} style={{ color: "var(--muted)" }} />
+                      <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1.5 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Mail size={11} />{c.email}</a>}
+                {c.phone && <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Phone size={11} />{c.phone}</div>}
+                {c.linkedinUrl && (
+                  <a href={c.linkedinUrl} target="_blank" className="flex items-center gap-2 text-xs" style={{ color: "var(--accent2)" }}>
+                    <Linkedin size={11} />LinkedIn
+                  </a>
                 )}
               </div>
             </div>
-            <div className="space-y-1.5 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-              {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Mail size={11} />{c.email}</a>}
-              {c.phone && <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Phone size={11} />{c.phone}</div>}
-              {c.linkedinUrl && (
-                <a href={c.linkedinUrl} target="_blank" className="flex items-center gap-2 text-xs text-blue-400 hover:text-blue-300">
-                  <Linkedin size={11} />Open in LinkedIn
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="glass rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                {["Kişi", "Şirket", "Email", "Telefon", ""].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--muted)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => (
+                <tr
+                  key={c.id}
+                  className="group transition-colors"
+                  style={{ borderTop: i === 0 ? undefined : "1px solid var(--border)" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white" }}>
+                        {c.firstName[0]}{c.lastName[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium truncate" style={{ color: "var(--text)" }}>{c.firstName} {c.lastName}</div>
+                        {c.title && <div className="text-xs truncate" style={{ color: "var(--muted)" }}>{c.title}</div>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.company
+                      ? <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
+                      : <span style={{ color: "var(--muted)", opacity: 0.4 }}>—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.email
+                      ? <a href={`mailto:${c.email}`} className="text-xs" style={{ color: "var(--muted)" }}>{c.email}</a>
+                      : <span style={{ color: "var(--muted)", opacity: 0.4 }}>—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.phone
+                      ? <span className="text-xs" style={{ color: "var(--muted)" }}>{c.phone}</span>
+                      : <span style={{ color: "var(--muted)", opacity: 0.4 }}>—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Linkedin size={13} /></a>}
+                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Pencil size={13} /></button>
+                      <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Trash2 size={13} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {loading && <LoadingRows />}
       {!loading && filtered.length === 0 && (
