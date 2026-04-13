@@ -262,6 +262,14 @@ select option { background: #031628; color: var(--text); }
 /* Child connector line — light mode */
 [data-theme="light"] .activity-child-wrapper { border-color: rgba(1, 70, 112, 0.15) !important; }
 
+/* ── Category chip — light mode active state ─────────── */
+
+[data-theme="light"] .cat-chip-active {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #3730a3 !important;
+  border-color: rgba(99, 102, 241, 0.45) !important;
+}
+
 /* ── Animations ──────────────────────────────────────── */
 
 @keyframes fadeIn {

@@ -98,16 +98,22 @@ export default function ExpensesPage() {
       .finally(() => setTableLoading(false));
   };
 
+  const loadStats = (month: string) => {
+    setStatsLoading(true);
+    const p = month ? `?month=${month}` : "";
+    fetch(`/api/expenses/stats${p}`).then(r => r.json()).then(setStats).finally(() => setStatsLoading(false));
+  };
+
   // Load stats + deals + current month's records on mount
   useEffect(() => {
-    setStatsLoading(true);
-    fetch("/api/expenses/stats").then(r => r.json()).then(setStats).finally(() => setStatsLoading(false));
+    loadStats(filterMonth);
     fetch("/api/deals").then(r => r.json()).then(setDeals);
     loadTable(true, filterMonth, search, filterCats);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reload when month or category filter changes immediately
   useEffect(() => {
+    loadStats(filterMonth);
     loadTable(true, filterMonth, search, filterCats);
   }, [filterMonth, filterCats]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -133,7 +139,7 @@ export default function ExpensesPage() {
       setForm({ ...EMPTY });
       setEditingId(null);
       // Refresh stats and table
-      fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
+      loadStats(filterMonth);
       loadTable(true, filterMonth, search, filterCats);
     } finally { setSaving(false); }
   };
@@ -141,7 +147,7 @@ export default function ExpensesPage() {
   const deleteExpense = async (id: string) => {
     await fetch(`/api/expenses/${id}`, { method: "DELETE" });
     setShowDeleteConfirm(null);
-    fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
+    loadStats(filterMonth);
     loadTable(true, filterMonth, search, filterCats);
   };
 
@@ -279,7 +285,7 @@ export default function ExpensesPage() {
       setLastBulkDate(now);
       closeBulk();
       // Refresh stats and table
-      fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
+      loadStats(filterMonth);
       loadTable(true, filterMonth, search, filterCats);
     } finally { setBulkSaving(false); }
   };
@@ -460,7 +466,7 @@ export default function ExpensesPage() {
               <button
                 key={c.value}
                 onClick={() => toggleCat(c.value)}
-                className="text-xs px-2.5 py-1 rounded-lg transition-all"
+                className={`text-xs px-2.5 py-1 rounded-lg transition-all${active ? " cat-chip-active" : ""}`}
                 style={{
                   background: active ? "rgba(99,102,241,0.35)" : "rgba(99,102,241,0.08)",
                   color: active ? "#c7d2fe" : "var(--muted)",

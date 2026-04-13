@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const month = searchParams.get("month"); // "YYYY-MM" or null — filters category counts
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
+
+  // Optional date filter for category breakdown
+  let catWhere: { date?: { gte: Date; lt: Date } } = {};
+  if (month) {
+    const [y, m] = month.split("-").map(Number);
+    catWhere = { date: { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) } };
+  }
 
   const [thisMonthRows, thisYearRows, totalRows, categoryRows, countRows, monthRows] = await Promise.all([
     // This month by currency
@@ -26,14 +36,16 @@ export async function GET() {
       by: ["currency"],
       _sum: { amount: true },
     }),
-    // Category amounts (all time)
+    // Category amounts (filtered by month if provided)
     prisma.expense.groupBy({
       by: ["category"],
+      where: catWhere,
       _sum: { amount: true },
     }),
-    // Category counts (all time)
+    // Category counts (filtered by month if provided)
     prisma.expense.groupBy({
       by: ["category"],
+      where: catWhere,
       _count: { id: true },
     }),
     // Available months
