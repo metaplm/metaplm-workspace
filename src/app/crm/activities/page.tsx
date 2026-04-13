@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Activity {
@@ -32,6 +32,135 @@ const TYPE_OPTIONS = [
 ] as const;
 
 const NOTES_LIMIT = 200;
+
+function FilterCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  allLabel,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  options: { id: string; label: string }[];
+  placeholder: string;
+  allLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const filtered = search.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options;
+
+  const selected = options.find(o => o.id === value);
+
+  return (
+    <div ref={ref} className="relative" style={{ minWidth: 180 }}>
+      <button
+        onClick={() => { setOpen(v => !v); setSearch(""); }}
+        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+        style={{
+          border: `1px solid ${open || value ? "var(--accent2)" : "var(--border)"}`,
+          background: value ? "rgba(2,103,160,0.08)" : "var(--surface)",
+          color: value ? "var(--text)" : "var(--muted)",
+          boxShadow: open ? "0 0 0 3px rgba(2,103,160,0.12)" : "none",
+        }}
+      >
+        <span className="truncate font-medium">{selected ? selected.label : placeholder}</span>
+        <div className="flex items-center gap-1 shrink-0">
+          {value && (
+            <span
+              onMouseDown={e => { e.stopPropagation(); onChange(""); setSearch(""); }}
+              className="rounded p-0.5 hover:opacity-70"
+              style={{ color: "var(--muted)" }}
+            >
+              <X size={11} />
+            </span>
+          )}
+          <ChevronDownSm
+            size={12}
+            style={{ color: "var(--muted)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+          />
+        </div>
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-20 w-full rounded-xl overflow-hidden"
+          style={{
+            top: "calc(100% + 6px)",
+            background: "var(--bg-panel)",
+            border: "1px solid var(--border)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+            minWidth: 220,
+          }}
+        >
+          <div className="p-2" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+              <input
+                autoFocus
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Ara..."
+                className="pl-7 text-xs py-1.5"
+                style={{ background: "var(--surface2)" }}
+              />
+            </div>
+          </div>
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            <div
+              onMouseDown={() => { onChange(""); setOpen(false); setSearch(""); }}
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer text-xs transition-colors"
+              style={{
+                color: !value ? "var(--accent2)" : "var(--muted)",
+                background: !value ? "rgba(2,103,160,0.08)" : "transparent",
+                fontWeight: !value ? 600 : 400,
+              }}
+            >
+              {allLabel}
+            </div>
+            {filtered.length === 0 && (
+              <div className="px-3 py-3 text-xs text-center" style={{ color: "var(--muted)" }}>Sonuç bulunamadı</div>
+            )}
+            {filtered.map(opt => (
+              <div
+                key={opt.id}
+                onMouseDown={() => { onChange(opt.id); setOpen(false); setSearch(""); }}
+                className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-xs transition-colors"
+                style={{
+                  background: value === opt.id ? "rgba(2,103,160,0.08)" : "transparent",
+                  color: value === opt.id ? "var(--text)" : "var(--muted)",
+                  fontWeight: value === opt.id ? 600 : 400,
+                }}
+                onMouseEnter={e => { if (value !== opt.id) (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = value === opt.id ? "rgba(2,103,160,0.08)" : "transparent"; }}
+              >
+                <span className="truncate">{opt.label}</span>
+                {value === opt.id && <Check size={11} style={{ color: "var(--accent2)", flexShrink: 0 }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const EMPTY_ACTIVITY = {
   type: "MEETING" as Activity["type"],
@@ -294,11 +423,20 @@ export default function ActivitiesPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [contactPickerOpen]);
 
-  // Contacts available in filter (optionally scoped to selected company)
+  // Contacts available in filter (scoped to selected company if set)
   const filterContactOptions = useMemo(() => {
     if (!filterCompanyId) return contacts;
     return contacts.filter(c => c.companyId === filterCompanyId);
   }, [contacts, filterCompanyId]);
+
+  const companyFilterOptions = useMemo(() =>
+    companies.map(c => ({ id: c.id, label: c.name })),
+    [companies]
+  );
+  const contactFilterOptions = useMemo(() =>
+    filterContactOptions.map(c => ({ id: c.id, label: `${c.firstName} ${c.lastName}` })),
+    [filterContactOptions]
+  );
 
   const handleSave = async () => {
     setSaving(true);
@@ -472,7 +610,7 @@ export default function ActivitiesPage() {
           </div>
         </div>
 
-        {/* Type pills */}
+        {/* Type pills + comboboxes — single row */}
         <div className="flex items-center gap-2 flex-wrap">
           {(["ALL", ...TYPE_OPTIONS.map(o => o.value)] as string[]).map(type => {
             const data = TYPE_OPTIONS.find(o => o.value === type);
@@ -484,36 +622,31 @@ export default function ActivitiesPage() {
                 className="text-xs px-3 py-1.5 rounded-full border transition-all"
                 style={{
                   background: active ? data?.bg || "rgba(255,255,255,0.1)" : "transparent",
-                  color: active ? data?.accent || "white" : "var(--muted)",
-                  borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "rgba(255,255,255,0.08)",
+                  color: active ? data?.accent || "var(--text)" : "var(--muted)",
+                  borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "var(--border)",
                 }}
               >
                 {type === "ALL" ? "Tümü" : data?.label}
               </button>
             );
           })}
-        </div>
 
-        {/* Company + Contact dropdowns */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            className="text-xs py-1.5"
-            style={{ minWidth: 160 }}
+          <div className="w-px self-stretch mx-1" style={{ background: "var(--border)" }} />
+
+          <FilterCombobox
             value={filterCompanyId}
-            onChange={e => { setFilterCompanyId(e.target.value); setFilterContactId(""); }}
-          >
-            <option value="">🏢 Tüm Şirketler</option>
-            {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select
-            className="text-xs py-1.5"
-            style={{ minWidth: 160 }}
+            onChange={id => { setFilterCompanyId(id); setFilterContactId(""); }}
+            options={companyFilterOptions}
+            placeholder="🏢 Şirket"
+            allLabel="Tüm şirketler"
+          />
+          <FilterCombobox
             value={filterContactId}
-            onChange={e => setFilterContactId(e.target.value)}
-          >
-            <option value="">👤 Tüm Kişiler</option>
-            {filterContactOptions.map(c => <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>)}
-          </select>
+            onChange={setFilterContactId}
+            options={contactFilterOptions}
+            placeholder="👤 Kişi"
+            allLabel="Tüm kişiler"
+          />
         </div>
       </div>
 
