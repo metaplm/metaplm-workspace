@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Activity {
@@ -87,14 +87,16 @@ function ActivityCard({
       >
         {/* Actions */}
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-          <button
-            onClick={() => onAddChild(activity)}
-            className="p-1.5 rounded-lg hover:bg-indigo-500/20 flex items-center gap-1 text-xs"
-            style={{ color: "var(--muted)" }}
-            title="Devam ekle"
-          >
-            <GitBranch size={13} />
-          </button>
+          {!isChild && (
+            <button
+              onClick={() => onAddChild(activity)}
+              className="p-1.5 rounded-lg hover:bg-indigo-500/20 flex items-center gap-1 text-xs"
+              style={{ color: "var(--muted)" }}
+              title="Devam ekle"
+            >
+              <GitBranch size={13} />
+            </button>
+          )}
           <button onClick={() => onEdit(activity)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
           <button onClick={() => onDelete(activity.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
         </div>
@@ -211,6 +213,9 @@ export default function ActivitiesPage() {
   const [convertTarget, setConvertTarget] = useState<Activity | null>(null);
   const [convertForm, setConvertForm] = useState({ title: "", amount: "", currency: "TRY" });
   const [loading, setLoading] = useState(true);
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const contactPickerRef = useRef<HTMLDivElement>(null);
 
   const load = () => {
     setLoading(true);
@@ -269,6 +274,19 @@ export default function ActivitiesPage() {
     return contacts.filter(c => c.companyId === form.companyId);
   }, [contacts, form.companyId]);
 
+  const filteredContactOptions = useMemo(() => {
+    const q = contactSearch.trim().toLowerCase();
+    if (!q) return contactOptions;
+    return contactOptions.filter(c =>
+      `${c.firstName} ${c.lastName}`.toLowerCase().includes(q)
+    );
+  }, [contactOptions, contactSearch]);
+
+  const selectedContactObjects = useMemo(() =>
+    contacts.filter(c => form.contactIds.includes(c.id)),
+    [contacts, form.contactIds]
+  );
+
   const toggleContact = (contactId: string) => {
     setForm(f => ({
       ...f,
@@ -277,6 +295,18 @@ export default function ActivitiesPage() {
         : [...f.contactIds, contactId],
     }));
   };
+
+  useEffect(() => {
+    if (!contactPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (contactPickerRef.current && !contactPickerRef.current.contains(e.target as Node)) {
+        setContactPickerOpen(false);
+        setContactSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [contactPickerOpen]);
 
   // Contacts available in filter (optionally scoped to selected company)
   const filterContactOptions = useMemo(() => {
@@ -315,6 +345,8 @@ export default function ActivitiesPage() {
       setShowModal(false);
       setForm({ ...EMPTY_ACTIVITY });
       setEditingId(null);
+      setContactPickerOpen(false);
+      setContactSearch("");
       load();
     } finally {
       setSaving(false);
@@ -627,45 +659,113 @@ export default function ActivitiesPage() {
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>
-                Kişiler
-                {form.contactIds.length > 0 && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>
-                    {form.contactIds.length} seçili
+            <div ref={contactPickerRef} className="relative">
+              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Kişiler</label>
+
+              {/* Combobox trigger */}
+              <div
+                className="rounded-lg cursor-text flex flex-wrap gap-1.5 p-2 min-h-[38px]"
+                style={{
+                  border: `1px solid ${contactPickerOpen ? "var(--accent2)" : "var(--border)"}`,
+                  background: "var(--surface)",
+                  boxShadow: contactPickerOpen ? "0 0 0 3px rgba(2,103,160,0.15)" : "none",
+                  transition: "border-color 0.15s, box-shadow 0.15s",
+                }}
+                onClick={() => { setContactPickerOpen(true); }}
+              >
+                {/* Selected chips */}
+                {selectedContactObjects.map(c => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium"
+                    style={{ background: "rgba(99,102,241,0.15)", color: "var(--accent, #6366f1)", border: "1px solid rgba(99,102,241,0.3)" }}
+                  >
+                    {c.firstName} {c.lastName}
+                    <button
+                      type="button"
+                      onMouseDown={e => { e.stopPropagation(); toggleContact(c.id); }}
+                      className="rounded hover:opacity-70 ml-0.5"
+                      style={{ color: "inherit", lineHeight: 1 }}
+                    >
+                      <X size={11} />
+                    </button>
                   </span>
-                )}
-              </label>
-              {contactOptions.length === 0 ? (
-                <div className="text-xs py-2 px-3 rounded-lg" style={{ color: "var(--muted)", background: "rgba(255,255,255,0.04)" }}>
-                  {form.companyId ? "Bu şirkete ait kişi bulunamadı" : "Önce şirket seçin veya tüm kişiler aşağıda"}
-                </div>
-              ) : (
-                <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)", maxHeight: 160, overflowY: "auto" }}>
-                  {contactOptions.map((contact, i) => {
-                    const selected = form.contactIds.includes(contact.id);
-                    return (
-                      <label
-                        key={contact.id}
-                        className="flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors"
-                        style={{
-                          background: selected ? "rgba(99,102,241,0.12)" : i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent",
-                          borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleContact(contact.id)}
-                          className="accent-indigo-500"
-                          style={{ width: 14, height: 14, flexShrink: 0 }}
-                        />
-                        <span className="text-sm" style={{ color: selected ? "#e0e7ff" : "var(--muted)" }}>
-                          {contact.firstName} {contact.lastName}
-                        </span>
-                      </label>
-                    );
-                  })}
+                ))}
+
+                {/* Search input */}
+                <input
+                  type="text"
+                  value={contactSearch}
+                  onChange={e => { setContactSearch(e.target.value); setContactPickerOpen(true); }}
+                  onFocus={() => setContactPickerOpen(true)}
+                  placeholder={selectedContactObjects.length === 0 ? "Kişi ara veya seç…" : ""}
+                  style={{
+                    border: "none !important",
+                    boxShadow: "none !important",
+                    background: "transparent !important",
+                    padding: "0 4px",
+                    minWidth: 80,
+                    flex: 1,
+                    fontSize: 13,
+                    color: "var(--text)",
+                    outline: "none",
+                    width: "auto",
+                  }}
+                />
+
+                <ChevronDownSm
+                  size={14}
+                  className="ml-auto self-center shrink-0"
+                  style={{ color: "var(--muted)", transform: contactPickerOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}
+                />
+              </div>
+
+              {/* Dropdown */}
+              {contactPickerOpen && (
+                <div
+                  className="absolute z-10 w-full rounded-lg overflow-hidden"
+                  style={{
+                    top: "calc(100% + 4px)",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-panel)",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                    maxHeight: 200,
+                    overflowY: "auto",
+                  }}
+                >
+                  {filteredContactOptions.length === 0 ? (
+                    <div className="px-3 py-3 text-xs text-center" style={{ color: "var(--muted)" }}>
+                      {contactSearch ? "Eşleşen kişi bulunamadı" : contactOptions.length === 0 ? (form.companyId ? "Bu şirkete ait kişi yok" : "Kişi bulunamadı") : ""}
+                    </div>
+                  ) : (
+                    filteredContactOptions.map(contact => {
+                      const selected = form.contactIds.includes(contact.id);
+                      return (
+                        <div
+                          key={contact.id}
+                          onMouseDown={e => { e.preventDefault(); toggleContact(contact.id); }}
+                          className="flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors"
+                          style={{
+                            background: selected ? "rgba(99,102,241,0.1)" : "transparent",
+                            color: "var(--text)",
+                          }}
+                          onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLDivElement).style.background = "rgba(99,102,241,0.06)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = selected ? "rgba(99,102,241,0.1)" : "transparent"; }}
+                        >
+                          <div
+                            className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                            style={{
+                              border: `1.5px solid ${selected ? "#6366f1" : "var(--border)"}`,
+                              background: selected ? "#6366f1" : "transparent",
+                            }}
+                          >
+                            {selected && <Check size={10} color="white" strokeWidth={3} />}
+                          </div>
+                          <span className="text-sm">{contact.firstName} {contact.lastName}</span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
             </div>
