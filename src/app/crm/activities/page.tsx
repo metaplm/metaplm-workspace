@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -48,12 +49,33 @@ function FilterCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 6,
+        left: rect.left,
+        minWidth: Math.max(rect.width, 220),
+        zIndex: 9999,
+      });
+    }
+    setOpen(true);
+    setSearch("");
+  };
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setOpen(false);
         setSearch("");
       }
@@ -68,12 +90,75 @@ function FilterCombobox({
 
   const selected = options.find(o => o.id === value);
 
+  const dropdown = open ? (
+    <div
+      ref={dropdownRef}
+      className="rounded-xl overflow-hidden"
+      style={{
+        ...dropdownStyle,
+        background: "var(--bg-panel)",
+        border: "1px solid var(--border)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+      }}
+    >
+      <div className="p-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="relative">
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+          <input
+            autoFocus
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Ara..."
+            className="pl-7 text-xs py-1.5"
+            style={{ background: "var(--surface2)" }}
+          />
+        </div>
+      </div>
+      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+        <div
+          onMouseDown={() => { onChange(""); setOpen(false); setSearch(""); }}
+          className="flex items-center gap-2 px-3 py-2 cursor-pointer text-xs"
+          style={{
+            color: !value ? "var(--accent2)" : "var(--muted)",
+            background: !value ? "rgba(2,103,160,0.08)" : "transparent",
+            fontWeight: !value ? 600 : 400,
+          }}
+        >
+          {allLabel}
+        </div>
+        {filtered.length === 0 && (
+          <div className="px-3 py-3 text-xs text-center" style={{ color: "var(--muted)" }}>Sonuç bulunamadı</div>
+        )}
+        {filtered.map(opt => (
+          <div
+            key={opt.id}
+            onMouseDown={() => { onChange(opt.id); setOpen(false); setSearch(""); }}
+            className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-xs"
+            style={{
+              background: value === opt.id ? "rgba(2,103,160,0.08)" : "transparent",
+              color: value === opt.id ? "var(--text)" : "var(--muted)",
+              fontWeight: value === opt.id ? 600 : 400,
+            }}
+            onMouseEnter={e => { if (value !== opt.id) (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = value === opt.id ? "rgba(2,103,160,0.08)" : "transparent"; }}
+          >
+            <span className="truncate">{opt.label}</span>
+            {value === opt.id && <Check size={11} style={{ color: "var(--accent2)", flexShrink: 0 }} />}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div ref={ref} className="relative" style={{ minWidth: 180 }}>
+    <>
       <button
-        onClick={() => { setOpen(v => !v); setSearch(""); }}
-        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
+        ref={triggerRef}
+        onClick={() => open ? (setOpen(false), setSearch("")) : openDropdown()}
+        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
         style={{
+          minWidth: 160,
           border: `1px solid ${open || value ? "var(--accent2)" : "var(--border)"}`,
           background: value ? "rgba(2,103,160,0.08)" : "var(--surface)",
           color: value ? "var(--text)" : "var(--muted)",
@@ -84,7 +169,7 @@ function FilterCombobox({
         <div className="flex items-center gap-1 shrink-0">
           {value && (
             <span
-              onMouseDown={e => { e.stopPropagation(); onChange(""); setSearch(""); }}
+              onMouseDown={e => { e.stopPropagation(); onChange(""); setOpen(false); setSearch(""); }}
               className="rounded p-0.5 hover:opacity-70"
               style={{ color: "var(--muted)" }}
             >
@@ -97,68 +182,8 @@ function FilterCombobox({
           />
         </div>
       </button>
-
-      {open && (
-        <div
-          className="absolute z-20 w-full rounded-xl overflow-hidden"
-          style={{
-            top: "calc(100% + 6px)",
-            background: "var(--bg-panel)",
-            border: "1px solid var(--border)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-            minWidth: 220,
-          }}
-        >
-          <div className="p-2" style={{ borderBottom: "1px solid var(--border)" }}>
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
-              <input
-                autoFocus
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Ara..."
-                className="pl-7 text-xs py-1.5"
-                style={{ background: "var(--surface2)" }}
-              />
-            </div>
-          </div>
-          <div style={{ maxHeight: 220, overflowY: "auto" }}>
-            <div
-              onMouseDown={() => { onChange(""); setOpen(false); setSearch(""); }}
-              className="flex items-center gap-2 px-3 py-2 cursor-pointer text-xs transition-colors"
-              style={{
-                color: !value ? "var(--accent2)" : "var(--muted)",
-                background: !value ? "rgba(2,103,160,0.08)" : "transparent",
-                fontWeight: !value ? 600 : 400,
-              }}
-            >
-              {allLabel}
-            </div>
-            {filtered.length === 0 && (
-              <div className="px-3 py-3 text-xs text-center" style={{ color: "var(--muted)" }}>Sonuç bulunamadı</div>
-            )}
-            {filtered.map(opt => (
-              <div
-                key={opt.id}
-                onMouseDown={() => { onChange(opt.id); setOpen(false); setSearch(""); }}
-                className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer text-xs transition-colors"
-                style={{
-                  background: value === opt.id ? "rgba(2,103,160,0.08)" : "transparent",
-                  color: value === opt.id ? "var(--text)" : "var(--muted)",
-                  fontWeight: value === opt.id ? 600 : 400,
-                }}
-                onMouseEnter={e => { if (value !== opt.id) (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = value === opt.id ? "rgba(2,103,160,0.08)" : "transparent"; }}
-              >
-                <span className="truncate">{opt.label}</span>
-                {value === opt.id && <Check size={11} style={{ color: "var(--accent2)", flexShrink: 0 }} />}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      {typeof window !== "undefined" && open && createPortal(dropdown, document.body)}
+    </>
   );
 }
 
