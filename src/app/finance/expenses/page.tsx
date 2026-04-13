@@ -362,9 +362,9 @@ export default function ExpensesPage() {
       ) : (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Bu Ay", data: statsThisMonth, color: "#f87171" },
-            { label: "Bu Yıl", data: statsThisYear, color: "#fb923c" },
-            { label: "Toplam", data: statsTotal, color: "#e2e8f0" },
+            { label: "Bu Ay", data: statsThisMonth, color: "var(--color-expense)" },
+            { label: "Bu Yıl", data: statsThisYear, color: "var(--color-warning)" },
+            { label: "Toplam", data: statsTotal, color: "var(--color-total)" },
           ].map(({ label, data, color }) => (
             <div key={label} className="glass rounded-xl p-4">
               <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>{label}</div>
@@ -391,7 +391,7 @@ export default function ExpensesPage() {
                   <div key={d.name} className="flex items-center gap-2">
                     <span style={{ width: 7, height: 7, borderRadius: "50%", background: PIE_COLORS[i % PIE_COLORS.length], flexShrink: 0 }} />
                     <span className="text-xs flex-1" style={{ color: "var(--muted)" }}>{d.name}</span>
-                    <span className="text-xs font-mono font-medium" style={{ color: "#e2e8f0" }}>{pct === 0 ? "<1%" : `${pct}%`}</span>
+                    <span className="text-xs font-mono font-medium" style={{ color: "var(--color-total)" }}>{pct === 0 ? "<1%" : `${pct}%`}</span>
                   </div>
                 );
               })}
@@ -408,7 +408,7 @@ export default function ExpensesPage() {
             <div className="glass rounded-xl p-4 flex flex-col justify-center" style={{ minWidth: 160 }}>
               <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>{monthLabel}</div>
               {Object.entries(filteredTotal).map(([curr, amt]) => (
-                <div key={curr} className="text-xl font-bold font-mono" style={{ color: "#f87171" }}>{formatCurrency(amt, curr)}</div>
+                <div key={curr} className="text-xl font-bold font-mono" style={{ color: "var(--color-expense)" }}>{formatCurrency(amt, curr)}</div>
               ))}
               {Object.keys(filteredTotal).length === 0 && (
                 <div className="text-xl font-bold font-mono" style={{ color: "var(--muted)" }}>₺0</div>
@@ -450,7 +450,7 @@ export default function ExpensesPage() {
               <button
                 onClick={() => { setSearch(""); setFilterCats([]); setFilterMonth(""); }}
                 className="text-xs px-3 rounded-lg shrink-0"
-                style={{ background: "rgba(239,68,68,0.12)", color: "#f87171" }}
+                style={{ background: "rgba(239,68,68,0.12)", color: "var(--color-expense)" }}
               >
                 Temizle
               </button>
@@ -469,7 +469,7 @@ export default function ExpensesPage() {
                 className={`text-xs px-2.5 py-1 rounded-lg transition-all${active ? " cat-chip-active" : ""}`}
                 style={{
                   background: active ? "rgba(99,102,241,0.35)" : "rgba(99,102,241,0.08)",
-                  color: active ? "#c7d2fe" : "var(--muted)",
+                  color: active ? "var(--color-indigo-chip)" : "var(--muted)",
                   border: active ? "1px solid rgba(99,102,241,0.5)" : "1px solid transparent",
                 }}
               >
@@ -512,7 +512,7 @@ export default function ExpensesPage() {
                       <span className="text-sm text-white">{exp.description || <span style={{ color: "var(--muted)" }}>—</span>}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}>
+                      <span className="text-xs px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: "rgba(99,102,241,0.15)", color: "var(--color-indigo-soft)" }}>
                         {CATEGORIES.find(c => c.value === exp.category)?.label || exp.category}
                       </span>
                     </td>
@@ -528,7 +528,7 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <span className="text-sm font-semibold font-mono" style={{ color: "#f87171" }}>
+                      <span className="text-sm font-semibold font-mono" style={{ color: "var(--color-expense)" }}>
                         -{formatCurrency(exp.amount, exp.currency)}
                       </span>
                     </td>
@@ -552,7 +552,7 @@ export default function ExpensesPage() {
               onClick={() => loadTable(false, filterMonth, search, filterCats)}
               className="w-full py-2.5 text-xs transition-colors"
               style={{ color: "var(--muted)", borderTop: "1px solid rgba(255,255,255,0.04)" }}
-              onMouseEnter={e => (e.currentTarget.style.color = "#a5b4fc")}
+              onMouseEnter={e => (e.currentTarget.style.color = "var(--color-indigo-soft)")}
               onMouseLeave={e => (e.currentTarget.style.color = "var(--muted)")}
             >
               {total - expenses.length} kayıt daha göster
@@ -625,7 +625,7 @@ export default function ExpensesPage() {
                 <h2 className="text-base font-semibold text-white flex items-center gap-2">
                   {bulkItems.length > 0
                     ? <><Sparkles size={16} style={{ color: "#a78bfa" }} />{bulkItems.length} harcama bulundu — İncele &amp; Kaydet</>
-                    : <><Layers size={16} style={{ color: "#a5b4fc" }} />Toplu Harcama Ekle</>
+                    : <><Layers size={16} style={{ color: "var(--color-indigo-soft)" }} />Toplu Harcama Ekle</>
                   }
                 </h2>
                 {bulkItems.length === 0 && (
@@ -647,7 +647,7 @@ export default function ExpensesPage() {
                   style={{ fontFamily: "monospace" }}
                 />
                 {bulkError && (
-                  <p className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>{bulkError}</p>
+                  <p className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.1)", color: "var(--color-expense)" }}>{bulkError}</p>
                 )}
                 <div className="flex gap-3">
                   <button className="btn-ghost flex-1 text-sm" onClick={closeBulk}>İptal</button>
@@ -674,11 +674,11 @@ export default function ExpensesPage() {
                   {/* Duplicate warning */}
                   {duplicateCount > 0 && (
                     <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)" }}>
-                      <div className="flex items-center gap-2" style={{ color: "#fbbf24" }}>
+                      <div className="flex items-center gap-2" style={{ color: "var(--color-warning-yellow)" }}>
                         <AlertTriangle size={14} />
                         <span><strong>{duplicateCount}</strong> kayıt mevcut harcamalarla aynı tarih+tutar+para birimine sahip</span>
                       </div>
-                      <button onClick={removeAllDuplicates} className="text-xs px-2 py-1 rounded font-medium" style={{ background: "rgba(245,158,11,0.2)", color: "#fbbf24" }}>
+                      <button onClick={removeAllDuplicates} className="text-xs px-2 py-1 rounded font-medium" style={{ background: "rgba(245,158,11,0.2)", color: "var(--color-warning-yellow)" }}>
                         Tümünü Çıkar
                       </button>
                     </div>
@@ -706,7 +706,7 @@ export default function ExpensesPage() {
                         onClick={applySearchReplace}
                         disabled={!srFind.trim()}
                         className="text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-40"
-                        style={{ background: "rgba(99,102,241,0.25)", color: "#a5b4fc" }}
+                        style={{ background: "rgba(99,102,241,0.25)", color: "var(--color-indigo-soft)" }}
                       >
                         Uygula
                       </button>
@@ -716,7 +716,7 @@ export default function ExpensesPage() {
                   {/* Bulk category for selected */}
                   {selectedRows.size > 0 && (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}>
-                      <span className="text-xs font-medium" style={{ color: "#a5b4fc" }}>{selectedRows.size} satır seçili</span>
+                      <span className="text-xs font-medium" style={{ color: "var(--color-indigo-soft)" }}>{selectedRows.size} satır seçili</span>
                       <div className="flex-1" />
                       <span className="text-xs" style={{ color: "var(--muted)" }}>Toplu kategori:</span>
                       <select
@@ -732,7 +732,7 @@ export default function ExpensesPage() {
                         onClick={applyBulkCategory}
                         disabled={!bulkCat}
                         className="text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-40"
-                        style={{ background: "rgba(99,102,241,0.3)", color: "#c7d2fe" }}
+                        style={{ background: "rgba(99,102,241,0.3)", color: "var(--color-indigo-chip)" }}
                       >
                         Uygula
                       </button>
@@ -746,7 +746,7 @@ export default function ExpensesPage() {
                   <div className="space-y-1">
                     {/* Header */}
                     <div className="grid gap-2 text-xs font-medium px-1 pb-1" style={{ color: "var(--muted)", gridTemplateColumns: "20px 20px 1fr 90px 70px 110px 100px 32px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                      <button onClick={toggleAllRows} className="flex items-center justify-center" style={{ color: allSelected ? "#a5b4fc" : "var(--muted)" }}>
+                      <button onClick={toggleAllRows} className="flex items-center justify-center" style={{ color: allSelected ? "var(--color-indigo-soft)" : "var(--muted)" }}>
                         <span style={{ width: 13, height: 13, display: "inline-flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${allSelected ? "#6366f1" : "rgba(255,255,255,0.2)"}`, borderRadius: 3, background: allSelected ? "#6366f1" : "transparent", fontSize: 9, color: "#fff" }}>
                           {allSelected ? "✓" : ""}
                         </span>
@@ -782,7 +782,7 @@ export default function ExpensesPage() {
                           </button>
                           {/* Dup icon */}
                           <div className="flex items-center justify-center">
-                            {dup && <span title="Muhtemel mükerrer kayıt"><AlertTriangle size={12} style={{ color: "#fbbf24" }} /></span>}
+                            {dup && <span title="Muhtemel mükerrer kayıt"><AlertTriangle size={12} style={{ color: "var(--color-warning-yellow)" }} /></span>}
                           </div>
                           <input value={item.description} onChange={e => updateBulkItem(idx, "description", e.target.value)} className="text-xs" placeholder="Açıklama" />
                           <input type="number" value={item.amount} onChange={e => updateBulkItem(idx, "amount", e.target.value)} className="text-xs" min="0" />

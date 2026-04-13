@@ -15,6 +15,15 @@
   --muted: #7abbda;
   --icon-bg: rgba(255, 255, 255, 0.05);
   --badge-bg: rgba(255, 255, 255, 0.08);
+  /* Semantic colors */
+  --color-expense: #f87171;
+  --color-warning: #fb923c;
+  --color-total: #e2e8f0;
+  --color-indigo-soft: #a5b4fc;
+  --color-indigo-chip: #c7d2fe;
+  --color-green-soft: #6ee7b7;
+  --color-blue-soft: #93c5fd;
+  --color-warning-yellow: #fbbf24;
 }
 
 [data-theme="light"] {
@@ -30,6 +39,15 @@
   --muted: #3b4a5c;
   --icon-bg: rgba(1, 70, 112, 0.08);
   --badge-bg: rgba(1, 70, 112, 0.08);
+  /* Semantic colors — darker for readability */
+  --color-expense: #b91c1c;
+  --color-warning: #c2410c;
+  --color-total: #0f172a;
+  --color-indigo-soft: #4338ca;
+  --color-indigo-chip: #3730a3;
+  --color-green-soft: #065f46;
+  --color-blue-soft: #1d4ed8;
+  --color-warning-yellow: #92400e;
 }
 
 [data-theme="light"] body {
