@@ -258,10 +258,7 @@ export default function ActivitiesPage() {
   const conversionRate = allActivitiesFlat.length ? (totalConverted / allActivitiesFlat.length) * 100 : 0;
   const upcomingNextActions = allActivitiesFlat.filter(a => a.nextActionDate && new Date(a.nextActionDate) >= new Date()).length;
 
-  const contactOptions = useMemo(() => {
-    if (!form.companyId) return contacts;
-    return contacts.filter(c => c.companyId === form.companyId);
-  }, [contacts, form.companyId]);
+  const contactOptions = contacts;
 
   const filteredContactOptions = useMemo(() => {
     const q = contactSearch.trim().toLowerCase();
