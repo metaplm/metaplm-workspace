@@ -47,6 +47,13 @@ interface CompanyDetail {
 
 const EMPTY = { name: "", website: "", logoUrl: "", description: "", linkedinUrl: "", nda: false };
 
+function formatMoney(amount: number, currency = "₺"): string {
+  if (amount >= 1_000_000) return `${currency}${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `${currency}${(amount / 1_000).toFixed(1)}K`;
+  if (amount > 0) return `${currency}${amount.toLocaleString("tr-TR")}`;
+  return "—";
+}
+
 const STAGE_LABELS: Record<string, string> = {
   LEAD: "Lead", QUALIFIED: "Nitelikli", PROPOSAL: "Teklif",
   NEGOTIATION: "Müzakere", WON: "Kazanıldı", LOST: "Kaybedildi"
@@ -75,13 +82,16 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
 
   const totalHours = detail?.timeEntries.reduce((s, e) => s + e.hours, 0) ?? 0;
   const billableHours = detail?.timeEntries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0) ?? 0;
-  const totalInvoiced = detail?.deals.flatMap(d => d.invoices).reduce((s, i) => s + i.amount, 0) ?? 0;
-  const paidInvoiced = detail?.deals.flatMap(d => d.invoices).filter(i => i.status === "PAID").reduce((s, i) => s + i.amount, 0) ?? 0;
+  const allInvoices = detail?.deals.flatMap(d => d.invoices) ?? [];
+  const totalInvoiced = allInvoices.reduce((s, i) => s + i.amount, 0);
+  const paidInvoiced = allInvoices.filter(i => i.status === "PAID").reduce((s, i) => s + i.amount, 0);
+  const activeDeals = detail?.deals.filter(d => !["WON", "LOST"].includes(d.stage)) ?? [];
+  const wonDeals = detail?.deals.filter(d => d.stage === "WON") ?? [];
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: "activities", label: "Aktiviteler", icon: <GitBranch size={13} />, count: detail?.activities.length },
     { id: "contacts", label: "Kişiler", icon: <Users size={13} />, count: detail?.contacts.length },
-    { id: "deals", label: "Fırsatlar", icon: <Briefcase size={13} />, count: detail?.deals.length },
+    { id: "deals", label: "Pipeline", icon: <Briefcase size={13} />, count: detail?.deals.length },
     { id: "projects", label: "Projeler", icon: <ChevronRight size={13} />, count: detail?.projects.length },
     { id: "timesheet", label: "Timesheet", icon: <Clock size={13} />, count: detail?.timeEntries.length },
   ];
@@ -125,14 +135,15 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
             {/* Stats bar */}
             <div className="grid grid-cols-4 gap-3 p-4 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
               {[
-                { label: "Aktivite", value: detail?.activities.length ?? 0 },
-                { label: "Saat", value: `${totalHours.toFixed(1)}h` },
-                { label: "Faturalandı", value: `₺${(totalInvoiced / 1000).toFixed(0)}K` },
-                { label: "Ödendi", value: `₺${(paidInvoiced / 1000).toFixed(0)}K` },
+                { label: "Aktivite", value: detail?.activities.length ?? 0, sub: null },
+                { label: "Pipeline", value: activeDeals.length, sub: wonDeals.length > 0 ? `${wonDeals.length} kazanıldı` : null, accent: activeDeals.length > 0 ? "#818cf8" : undefined },
+                { label: "Faturalanan", value: formatMoney(totalInvoiced), sub: null },
+                { label: "Tahsilat", value: formatMoney(paidInvoiced), sub: totalInvoiced > 0 ? `%${Math.round((paidInvoiced / totalInvoiced) * 100)}` : null, accent: paidInvoiced > 0 ? "#22c55e" : undefined },
               ].map(s => (
                 <div key={s.label} className="glass rounded-lg p-3 text-center">
-                  <div className="text-lg font-semibold" style={{ color: "var(--text)" }}>{s.value}</div>
+                  <div className="text-lg font-semibold" style={{ color: s.accent ?? "var(--text)" }}>{s.value}</div>
                   <div className="text-[11px]" style={{ color: "var(--muted)" }}>{s.label}</div>
+                  {s.sub && <div className="text-[10px] mt-0.5" style={{ color: s.accent ?? "var(--muted)" }}>{s.sub}</div>}
                 </div>
               ))}
             </div>
@@ -212,7 +223,20 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
 
               {tab === "deals" && (
                 <>
-                  {detail?.deals.length === 0 && <Empty label="Henüz fırsat yok" />}
+                  {(detail?.deals.length ?? 0) > 0 && (
+                    <div className="flex items-center gap-3 flex-wrap pb-1">
+                      {["LEAD","QUALIFIED","PROPOSAL","NEGOTIATION","WON","LOST"].map(stage => {
+                        const count = detail!.deals.filter(d => d.stage === stage).length;
+                        if (!count) return null;
+                        return (
+                          <span key={stage} className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ background: `${STAGE_COLORS[stage]}22`, color: STAGE_COLORS[stage] }}>
+                            {STAGE_LABELS[stage]} {count}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {detail?.deals.length === 0 && <Empty label="Henüz pipeline yok" />}
                   {detail?.deals.map(d => (
                     <div key={d.id} className="glass rounded-xl p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2">
@@ -381,18 +405,18 @@ export default function CompaniesPage() {
     <div className="p-8 space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Companies</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{companies.length} companies</p>
+          <h1 className="text-xl font-semibold text-white">Şirketler</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{companies.length} şirket</p>
         </div>
         <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
-          <Plus size={15} /> Add Company
+          <Plus size={15} /> Şirket Ekle
         </button>
       </div>
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1" style={{ maxWidth: 320 }}>
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
-          <input placeholder="Search companies..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
+          <input placeholder="Şirket ara..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
         </div>
         <div className="flex rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }}>
           <button
@@ -438,7 +462,16 @@ export default function CompaniesPage() {
               </div>
               {c.description && <p className="text-xs mb-3 line-clamp-2 break-words" style={{ color: "var(--muted)" }}>{c.description}</p>}
               <div className="flex items-center justify-between text-xs pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-                <span style={{ color: "var(--muted)" }}>{c.contacts.length} contacts · {c.deals.length} deals</span>
+                <div className="flex items-center gap-2">
+                  <span style={{ color: "var(--muted)" }}>{c.contacts.length} kişi</span>
+                  {(() => {
+                    const active = c.deals.filter(d => !["WON","LOST"].includes(d.stage)).length;
+                    const won = c.deals.filter(d => d.stage === "WON").length;
+                    if (active > 0) return <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(129,140,248,0.15)", color: "#818cf8" }}>{active} aktif pipeline</span>;
+                    if (won > 0) return <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>{won} kazanıldı</span>;
+                    return null;
+                  })()}
+                </div>
                 {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" onClick={e => e.stopPropagation()} className="flex items-center gap-1 text-blue-400"><Linkedin size={11} />LinkedIn</a>}
               </div>
             </div>
@@ -449,7 +482,7 @@ export default function CompaniesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Şirket", "Website", "Kişiler", "Fırsatlar", ""].map(h => (
+                {["Şirket", "Website", "Kişiler", "Pipeline", ""].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--muted)" }}>{h}</th>
                 ))}
               </tr>
@@ -487,7 +520,15 @@ export default function CompaniesPage() {
                     <span className="text-xs" style={{ color: "var(--muted)" }}>{c.contacts.length}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs" style={{ color: "var(--muted)" }}>{c.deals.length}</span>
+                    {(() => {
+                      const active = c.deals.filter(d => !["WON","LOST"].includes(d.stage));
+                      const won = c.deals.filter(d => d.stage === "WON").length;
+                      if (active.length > 0)
+                        return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(129,140,248,0.12)", color: "#818cf8" }}>{active.length} aktif</span>;
+                      if (won > 0)
+                        return <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>{won} kazanıldı</span>;
+                      return <span style={{ color: "var(--muted)", opacity: 0.4 }} className="text-xs">—</span>;
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -507,8 +548,8 @@ export default function CompaniesPage() {
       {!loading && filtered.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <Building2 size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
-          <div className="text-sm text-white mb-1">No companies yet</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>Use the Magic Add to scrape any website instantly</div>
+          <div className="text-sm text-white mb-1">Henüz şirket yok</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>Magic Add ile herhangi bir web sitesini anında ekleyebilirsiniz</div>
         </div>
       )}
 
@@ -529,7 +570,7 @@ export default function CompaniesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="glass rounded-2xl w-full max-w-lg p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Company" : "Add Company"}</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Şirket Düzenle" : "Şirket Ekle"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
 
@@ -544,15 +585,15 @@ export default function CompaniesPage() {
             </div>
 
             <div className="space-y-3">
-              {[["Company Name *", "name", "Acme Corp"], ["Website", "website", "https://acme.com"], ["Logo URL", "logoUrl", "https://..."], ["LinkedIn URL", "linkedinUrl", "https://linkedin.com/company/..."]].map(([label, key, ph]) => (
+              {[["Şirket Adı *", "name", "Örn: Acme A.Ş."], ["Website", "website", "https://acme.com"], ["Logo URL", "logoUrl", "https://..."], ["LinkedIn URL", "linkedinUrl", "https://linkedin.com/company/..."]].map(([label, key, ph]) => (
                 <div key={key}>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>{label}</label>
                   <input placeholder={ph} value={form[key as keyof typeof form] as string} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="text-sm" />
                 </div>
               ))}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Description</label>
-                <textarea rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="text-sm resize-none" placeholder="What does this company do?" />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Açıklama</label>
+                <textarea rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="text-sm resize-none" placeholder="Şirket ne yapar?" />
               </div>
               <div className="flex items-center gap-3 pt-2">
                 <label className="text-xs font-medium" style={{ color: "var(--muted)" }}>Gizlilik Anlaşması</label>
@@ -569,10 +610,10 @@ export default function CompaniesPage() {
                 </button>
               </div>
             </div>
-            {form.logoUrl && <div className="mt-3 flex items-center gap-2"><img src={form.logoUrl} alt="" className="w-8 h-8 object-contain rounded" /><span className="text-xs" style={{ color: "var(--muted)" }}>Logo preview</span></div>}
+            {form.logoUrl && <div className="mt-3 flex items-center gap-2"><img src={form.logoUrl} alt="" className="w-8 h-8 object-contain rounded" /><span className="text-xs" style={{ color: "var(--muted)" }}>Logo önizleme</span></div>}
             <div className="flex gap-3 mt-5">
-              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.name}>{saving ? "Saving..." : (editingId ? "Update" : "Add Company")}</button>
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>İptal</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.name}>{saving ? "Kaydediliyor..." : (editingId ? "Güncelle" : "Şirket Ekle")}</button>
             </div>
           </div>
         </div>
@@ -581,11 +622,11 @@ export default function CompaniesPage() {
       {showDeleteConfirm && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
-            <h2 className="text-base font-semibold text-white mb-2">Delete Company?</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone. All associated contacts, deals, and activities will remain but lose their company link.</p>
+            <h2 className="text-base font-semibold text-white mb-2">Şirket Silinsin mi?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz. İlişkili kişiler, fırsatlar ve aktiviteler korunur fakat şirket bağlantısı kaldırılır.</p>
             <div className="flex gap-3">
-              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteCompany(showDeleteConfirm)}>Delete</button>
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>İptal</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteCompany(showDeleteConfirm)}>Sil</button>
             </div>
           </div>
         </div>
