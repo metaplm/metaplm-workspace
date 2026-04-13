@@ -11,8 +11,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Allow all API routes except protected ones
+  // API routes: allow browser sessions (cookie) OR valid API key header
   if (pathname.startsWith('/api/')) {
+    const apiKey = process.env.METAPLM_API_KEY
+    const providedKey = request.headers.get('x-api-key')
+    const hasCookie = !!request.cookies.get('auth_token')?.value
+
+    // If an API key is configured, require either a valid key or a browser cookie
+    if (apiKey && !hasCookie && providedKey !== apiKey) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     return NextResponse.next()
   }
 
