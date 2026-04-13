@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search, Sparkles, Loader2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface Activity {
@@ -359,6 +359,9 @@ export default function ActivitiesPage() {
   const [contactSearch, setContactSearch] = useState("");
   const contactPickerRef = useRef<HTMLDivElement>(null);
   const [viewActivity, setViewActivity] = useState<Activity | null>(null);
+  const [aiText, setAiText] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiFilledFields, setAiFilledFields] = useState<string[]>([]);
 
   const load = () => {
     setLoading(true);
@@ -463,6 +466,41 @@ export default function ActivitiesPage() {
     [filterContactOptions]
   );
 
+  const handleAiFill = async () => {
+    if (!aiText.trim()) return;
+    setAiLoading(true);
+    setAiFilledFields([]);
+    try {
+      const res = await fetch("/api/activities/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: aiText,
+          companies: companies.map(c => ({ id: c.id, name: c.name })),
+          contacts: contacts.map(c => ({ id: c.id, firstName: c.firstName, lastName: c.lastName })),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) return;
+      const filled: string[] = [];
+      setForm(f => {
+        const next = { ...f };
+        if (data.type) { next.type = data.type; filled.push("Tür"); }
+        if (data.notes) { next.notes = data.notes; filled.push("Notlar"); }
+        if (data.nextActionDate) { next.nextActionDate = data.nextActionDate; filled.push("Sonraki Aksiyon"); }
+        if (data.createdAt) { next.createdAt = data.createdAt; filled.push("Tarih"); }
+        if (data.source) { next.source = data.source; filled.push("Kaynak"); }
+        if (data.companyId) { next.companyId = data.companyId; filled.push("Şirket"); }
+        if (data.contactIds?.length) { next.contactIds = data.contactIds; filled.push("Kişiler"); }
+        return next;
+      });
+      setAiFilledFields(filled);
+      setAiText("");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     const payload: Record<string, unknown> = {
@@ -496,6 +534,8 @@ export default function ActivitiesPage() {
       setEditingId(null);
       setContactPickerOpen(false);
       setContactSearch("");
+      setAiText("");
+      setAiFilledFields([]);
       load();
     } finally {
       setSaving(false);
@@ -869,6 +909,45 @@ export default function ActivitiesPage() {
             {form.parentId && !editingId && (
               <div className="text-xs px-3 py-2 rounded-lg flex items-center gap-2" style={{ background: "rgba(99,102,241,0.12)", color: "#a5b4fc" }}>
                 <GitBranch size={12} /> Bu aktivite bir öncekinin devamı olarak kaydedilecek
+              </div>
+            )}
+
+            {/* AI Asistan */}
+            {!editingId && (
+              <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles size={13} style={{ color: "#818cf8" }} />
+                  <span className="text-xs font-semibold" style={{ color: "#818cf8" }}>AI ile Doldur</span>
+                  <span className="text-[10px] ml-auto" style={{ color: "var(--muted)" }}>Serbest metin yaz, alanları otomatik dolduralım</span>
+                </div>
+                <div className="flex gap-2">
+                  <textarea
+                    rows={2}
+                    value={aiText}
+                    onChange={e => setAiText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleAiFill(); }}
+                    placeholder="Örn: Bugün Acme firmasından Ahmet ile toplantı yaptık, ürün demo verdik, haftaya tekrar konuşacağız..."
+                    className="flex-1 text-xs resize-none"
+                    style={{ background: "rgba(99,102,241,0.08)", borderColor: "rgba(99,102,241,0.2)" }}
+                  />
+                  <button
+                    onClick={handleAiFill}
+                    disabled={aiLoading || !aiText.trim()}
+                    className="btn-primary flex items-center gap-1.5 text-xs px-3 self-stretch"
+                    style={{ opacity: (!aiText.trim() || aiLoading) ? 0.5 : 1 }}
+                  >
+                    {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                    {aiLoading ? "Analiz..." : "Doldur"}
+                  </button>
+                </div>
+                {aiFilledFields.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px]" style={{ color: "#22c55e" }}>✓ Dolduruldu:</span>
+                    {aiFilledFields.map(f => (
+                      <span key={f} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>{f}</span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
