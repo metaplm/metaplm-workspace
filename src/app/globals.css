@@ -227,6 +227,42 @@ select option { background: #031628; color: var(--text); }
   letter-spacing: 0.05em;
 }
 
+/* ── Activity card theming ───────────────────────────── */
+
+/* Root activity — dark mode */
+.activity-card-root {
+  background: rgba(99, 102, 241, 0.07) !important;
+  border-color: rgba(99, 102, 241, 0.28) !important;
+  border-width: 1px !important;
+}
+
+/* Child activity — dark mode: inherit glass, no override needed */
+.activity-card-child { /* no dark-mode override needed */ }
+
+/* Child connector line — dark mode */
+.activity-child-wrapper { border-color: rgba(255, 255, 255, 0.1); }
+
+/* Root activity — light mode */
+[data-theme="light"] .activity-card-root {
+  background: rgba(99, 102, 241, 0.05) !important;
+  border-left: 3px solid rgba(99, 102, 241, 0.45) !important;
+  border-top-color: rgba(99, 102, 241, 0.18) !important;
+  border-right-color: rgba(99, 102, 241, 0.18) !important;
+  border-bottom-color: rgba(99, 102, 241, 0.18) !important;
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.07) !important;
+}
+
+/* Child activity — light mode: slightly dimmer than root */
+[data-theme="light"] .activity-card-child {
+  background: rgba(255, 255, 255, 0.75) !important;
+  border-color: rgba(1, 70, 112, 0.1) !important;
+}
+
+/* Child connector line — light mode */
+[data-theme="light"] .activity-child-wrapper { border-color: rgba(1, 70, 112, 0.18) !important; }
+
+/* ── Animations ──────────────────────────────────────── */
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

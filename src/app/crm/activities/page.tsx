@@ -51,6 +51,7 @@ function ActivityCard({
   onDelete,
   onConvert,
   onAddChild,
+  onView,
   isChild = false,
   collapsed,
   onToggleCollapse,
@@ -60,33 +61,28 @@ function ActivityCard({
   onDelete: (id: string) => void;
   onConvert: (a: Activity) => void;
   onAddChild: (a: Activity) => void;
+  onView: (a: Activity) => void;
   isChild?: boolean;
   collapsed: boolean;
   onToggleCollapse: (id: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const typeMeta = TYPE_OPTIONS.find(t => t.value === activity.type);
   const hasChildren = (activity.children?.length ?? 0) > 0;
   const isRootActivity = !activity.parentId;
-
-  const notesText = activity.notes || "";
-  const isTruncated = notesText.length > NOTES_LIMIT;
-  const displayNotes = isTruncated && !expanded ? notesText.slice(0, NOTES_LIMIT) + "…" : notesText;
-
   const company = activity.company;
 
+  const stopProp = (e: React.MouseEvent) => e.stopPropagation();
+
   return (
-    <div className={isChild ? "ml-6 border-l-2 pl-4" : ""} style={isChild ? { borderColor: "rgba(255,255,255,0.1)" } : {}}>
+    <div
+      className={isChild ? "activity-child-wrapper ml-6 border-l-2 pl-4" : ""}
+    >
       <div
-        className="glass rounded-xl p-4 flex flex-col gap-2 relative group"
-        style={isRootActivity && !isChild ? {
-          background: "rgba(99,102,241,0.08)",
-          borderColor: "rgba(99,102,241,0.3)",
-          borderWidth: "1px"
-        } : {}}
+        className={`glass rounded-xl p-4 flex flex-col gap-2 relative group cursor-pointer ${isRootActivity && !isChild ? "activity-card-root" : "activity-card-child"}`}
+        onClick={() => onView(activity)}
       >
         {/* Actions */}
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1" onClick={stopProp}>
           {!isChild && (
             <button
               onClick={() => onAddChild(activity)}
@@ -107,7 +103,7 @@ function ActivityCard({
             {company.logoUrl && (
               <img src={company.logoUrl} alt={company.name} className="w-6 h-6 object-contain rounded" />
             )}
-            <span className="text-sm font-medium text-white/90">{company.name}</span>
+            <span className="text-sm font-medium" style={{ color: "var(--text)" }}>{company.name}</span>
           </div>
         )}
 
@@ -116,7 +112,7 @@ function ActivityCard({
           <div className="flex items-center gap-2">
             {hasChildren && (
               <button
-                onClick={() => onToggleCollapse(activity.id)}
+                onClick={e => { stopProp(e); onToggleCollapse(activity.id); }}
                 className="p-0.5 rounded hover:bg-white/10 transition-colors"
                 style={{ color: "var(--muted)" }}
                 title={collapsed ? "Genişlet" : "Daralt"}
@@ -128,39 +124,30 @@ function ActivityCard({
               {typeMeta?.label}
             </span>
             <span className="text-xs" style={{ color: "var(--muted)" }}>
-              {new Date(activity.createdAt).toLocaleDateString()}
+              {new Date(activity.createdAt).toLocaleDateString("tr-TR")}
             </span>
             {hasChildren && (
-              <span className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ color: "#a5b4fc", background: "rgba(99,102,241,0.12)" }}>
+              <span className="text-[10px] flex items-center gap-0.5 px-1.5 py-0.5 rounded-full" style={{ color: "#818cf8", background: "rgba(99,102,241,0.12)" }}>
                 <GitBranch size={10} /> {activity.children!.length} devam
               </span>
             )}
           </div>
           {activity.deal ? (
-            <span className="text-xs flex items-center gap-1" style={{ color: "#a5b4fc" }}>
+            <span className="text-xs flex items-center gap-1" style={{ color: "#818cf8" }}>
               <ArrowRight size={12} /> {activity.deal.title}
             </span>
           ) : (
-            <button className="btn-ghost text-xs" onClick={() => onConvert(activity)}>
+            <button className="btn-ghost text-xs" onClick={e => { stopProp(e); onConvert(activity); }}>
               Pipeline&apos;a Çevir
             </button>
           )}
         </div>
 
-        {/* Notes with truncation */}
-        {notesText && (
-          <div>
-            <p className="text-sm text-white/90">{displayNotes}</p>
-            {isTruncated && (
-              <button
-                className="text-xs mt-1 hover:underline"
-                style={{ color: "#a5b4fc" }}
-                onClick={() => setExpanded(e => !e)}
-              >
-                {expanded ? "Daha az göster" : "Daha fazla göster"}
-              </button>
-            )}
-          </div>
+        {/* Notes */}
+        {activity.notes && (
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text)", opacity: 0.88 }}>
+            {activity.notes.length > NOTES_LIMIT ? activity.notes.slice(0, NOTES_LIMIT) + "…" : activity.notes}
+          </p>
         )}
 
         {/* Footer */}
@@ -169,10 +156,10 @@ function ActivityCard({
             <span>👤 {activity.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}</span>
           )}
           {activity.source && isRootActivity && !isChild && (
-            <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>📌 {activity.source}</span>
+            <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>📌 {activity.source}</span>
           )}
           {activity.nextActionDate && (
-            <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString()}</span>
+            <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString("tr-TR")}</span>
           )}
         </div>
       </div>
@@ -186,6 +173,7 @@ function ActivityCard({
               onDelete={onDelete}
               onConvert={onConvert}
               onAddChild={onAddChild}
+              onView={onView}
               isChild
               collapsed={false}
               onToggleCollapse={onToggleCollapse}
@@ -216,6 +204,7 @@ export default function ActivitiesPage() {
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const contactPickerRef = useRef<HTMLDivElement>(null);
+  const [viewActivity, setViewActivity] = useState<Activity | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -540,6 +529,7 @@ export default function ActivitiesPage() {
             onDelete={id => setShowDeleteConfirm(id)}
             onConvert={openConvertModal}
             onAddChild={openAddChild}
+            onView={setViewActivity}
             collapsed={collapsedIds.has(activity.id)}
             onToggleCollapse={toggleCollapse}
           />
@@ -556,6 +546,161 @@ export default function ActivitiesPage() {
           </div>
         </div>
       )}
+
+      {/* Activity Detail Modal */}
+      {viewActivity && (<ModalPortal>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }} onClick={() => setViewActivity(null)}>
+          <div
+            className="glass rounded-2xl w-full max-w-lg animate-in overflow-hidden"
+            style={{ maxHeight: "88vh" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header bar */}
+            {(() => {
+              const tm = TYPE_OPTIONS.find(t => t.value === viewActivity.type);
+              return (
+                <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {viewActivity.company?.logoUrl && (
+                      <img src={viewActivity.company.logoUrl} alt="" className="w-8 h-8 object-contain rounded-lg shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: tm?.accent, background: tm?.bg }}>{tm?.label}</span>
+                        {viewActivity.company && <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>{viewActivity.company.name}</span>}
+                        {!viewActivity.parentId && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>Root</span>}
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                        {new Date(viewActivity.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                      </div>
+                    </div>
+                  </div>
+                  <button className="btn-ghost text-xs shrink-0" onClick={() => setViewActivity(null)}>Kapat</button>
+                </div>
+              );
+            })()}
+
+            <div className="overflow-y-auto" style={{ maxHeight: "calc(88vh - 80px)" }}>
+              <div className="px-5 py-4 space-y-4">
+
+                {/* Notes */}
+                {viewActivity.notes && (
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--muted)" }}>Notlar</div>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text)" }}>{viewActivity.notes}</p>
+                  </div>
+                )}
+
+                {/* Meta grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  {viewActivity.contacts && viewActivity.contacts.length > 0 && (
+                    <div className="col-span-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: "var(--muted)" }}>Kişiler</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewActivity.contacts.map(c => (
+                          <span key={c.id} className="text-xs px-2 py-0.5 rounded-md font-medium" style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)" }}>
+                            {c.firstName} {c.lastName}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {viewActivity.nextActionDate && (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>Sonraki Aksiyon</div>
+                      <div className="text-sm flex items-center gap-1.5" style={{ color: "var(--text)" }}>
+                        <Calendar size={13} style={{ color: "#f59e0b" }} />
+                        {new Date(viewActivity.nextActionDate).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                      </div>
+                    </div>
+                  )}
+                  {viewActivity.source && (
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>Kaynak</div>
+                      <div className="text-sm" style={{ color: "var(--text)" }}>📌 {viewActivity.source}</div>
+                    </div>
+                  )}
+                  {viewActivity.deal && (
+                    <div className="col-span-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>Bağlı Deal</div>
+                      <div className="text-sm flex items-center gap-1.5" style={{ color: "#818cf8" }}>
+                        <ArrowRight size={13} /> {viewActivity.deal.title}
+                      </div>
+                    </div>
+                  )}
+                  {viewActivity.rootActivity && (
+                    <div className="col-span-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--muted)" }}>Root Aktivite</div>
+                      <div className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(99,102,241,0.08)", color: "var(--text)", border: "1px solid rgba(99,102,241,0.15)" }}>
+                        {viewActivity.rootActivity.company?.name && <span className="font-medium">{viewActivity.rootActivity.company.name} — </span>}
+                        {viewActivity.rootActivity.notes?.slice(0, 80) || "—"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Child activities timeline */}
+                {viewActivity.children && viewActivity.children.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: "var(--muted)" }}>
+                      <GitBranch size={11} /> Devam Aktiviteleri ({viewActivity.children.length})
+                    </div>
+                    <div className="relative">
+                      {/* vertical line */}
+                      <div className="absolute left-3 top-0 bottom-0 w-px" style={{ background: "var(--border)" }} />
+                      <div className="space-y-3 pl-8">
+                        {viewActivity.children.map((child, i) => {
+                          const ctm = TYPE_OPTIONS.find(t => t.value === child.type);
+                          return (
+                            <div key={child.id} className="relative">
+                              {/* dot */}
+                              <div className="absolute -left-5 top-3 w-2.5 h-2.5 rounded-full border-2" style={{ background: "var(--bg-panel)", borderColor: ctm?.accent || "var(--border)" }} />
+                              <div className="rounded-xl p-3 space-y-1.5" style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: ctm?.accent, background: ctm?.bg }}>{ctm?.label}</span>
+                                  <span className="text-[11px]" style={{ color: "var(--muted)" }}>
+                                    {new Date(child.createdAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short", year: "numeric" })}
+                                  </span>
+                                  {i === viewActivity.children!.length - 1 && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>Son</span>
+                                  )}
+                                </div>
+                                {child.notes && (
+                                  <p className="text-xs leading-relaxed" style={{ color: "var(--text)" }}>
+                                    {child.notes.length > 160 ? child.notes.slice(0, 160) + "…" : child.notes}
+                                  </p>
+                                )}
+                                {child.contacts && child.contacts.length > 0 && (
+                                  <div className="text-[11px]" style={{ color: "var(--muted)" }}>
+                                    👤 {child.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}
+                                  </div>
+                                )}
+                                {child.nextActionDate && (
+                                  <div className="text-[11px] flex items-center gap-1" style={{ color: "var(--muted)" }}>
+                                    <Calendar size={10} /> {new Date(child.nextActionDate).toLocaleDateString("tr-TR")}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Footer actions */}
+              <div className="px-5 pb-5 flex gap-2 justify-end" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                <button className="btn-ghost text-xs flex items-center gap-1.5" onClick={() => { setViewActivity(null); openEdit(viewActivity); }}>
+                  <Pencil size={12} /> Düzenle
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
 
       {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
