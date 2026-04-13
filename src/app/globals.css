@@ -242,24 +242,25 @@ select option { background: #031628; color: var(--text); }
 /* Child connector line — dark mode */
 .activity-child-wrapper { border-color: rgba(255, 255, 255, 0.1); }
 
-/* Root activity — light mode */
+/* Root activity — light mode: clean white card */
 [data-theme="light"] .activity-card-root {
-  background: rgba(99, 102, 241, 0.05) !important;
-  border-left: 3px solid rgba(99, 102, 241, 0.45) !important;
-  border-top-color: rgba(99, 102, 241, 0.18) !important;
-  border-right-color: rgba(99, 102, 241, 0.18) !important;
-  border-bottom-color: rgba(99, 102, 241, 0.18) !important;
-  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.07) !important;
+  background: #ffffff !important;
+  border-left: 3px solid rgba(99, 102, 241, 0.5) !important;
+  border-top-color: rgba(1, 70, 112, 0.12) !important;
+  border-right-color: rgba(1, 70, 112, 0.12) !important;
+  border-bottom-color: rgba(1, 70, 112, 0.12) !important;
+  box-shadow: 0 1px 6px rgba(1, 70, 112, 0.06) !important;
 }
 
-/* Child activity — light mode: slightly dimmer than root */
+/* Child activity — light mode: soft gray */
 [data-theme="light"] .activity-card-child {
-  background: rgba(255, 255, 255, 0.75) !important;
-  border-color: rgba(1, 70, 112, 0.1) !important;
+  background: #f1f5f9 !important;
+  border-color: rgba(1, 70, 112, 0.08) !important;
+  box-shadow: none !important;
 }
 
 /* Child connector line — light mode */
-[data-theme="light"] .activity-child-wrapper { border-color: rgba(1, 70, 112, 0.18) !important; }
+[data-theme="light"] .activity-child-wrapper { border-color: rgba(1, 70, 112, 0.15) !important; }
 
 /* ── Animations ──────────────────────────────────────── */
 
