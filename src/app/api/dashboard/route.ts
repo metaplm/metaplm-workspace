@@ -54,14 +54,20 @@ export async function GET() {
   const billableHours = timeEntries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0);
   
   // Timesheet by project/company (top 5)
-  const projectHours = timeEntries.reduce((acc, e) => {
+  const projectMap: Record<string, { hours: number; logoUrl?: string; companyName?: string }> = {};
+  for (const e of timeEntries) {
     const key = e.project?.name || e.company?.name || "Unassigned";
-    if (!acc[key]) acc[key] = 0;
-    acc[key] += e.hours;
-    return acc;
-  }, {} as Record<string, number>);
-  const topProjects = Object.entries(projectHours)
-    .map(([name, hours]) => ({ name, hours }))
+    if (!projectMap[key]) {
+      projectMap[key] = {
+        hours: 0,
+        logoUrl: (e.company as any)?.logoUrl ?? undefined,
+        companyName: (e.company as any)?.name ?? undefined,
+      };
+    }
+    projectMap[key].hours += e.hours;
+  }
+  const topProjects = Object.entries(projectMap)
+    .map(([name, data]) => ({ name, ...data }))
     .sort((a, b) => b.hours - a.hours)
     .slice(0, 5);
 

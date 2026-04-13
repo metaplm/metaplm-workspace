@@ -18,7 +18,7 @@ interface DashData {
   monthlyHours: number;
   billableHours: number;
   billableRate: number;
-  topProjects: Array<{ name: string; hours: number }>;
+  topProjects: Array<{ name: string; hours: number; logoUrl?: string; companyName?: string }>;
   topExpenseCategories: Array<{ category: string; amount: number }>;
   activityStats: {
     total: number;
@@ -203,9 +203,21 @@ export default function Dashboard() {
                 const colors = ["#6366f1", "#8b5cf6", "#06b6d4", "#10b981", "#f59e0b"];
                 return (
                   <div key={proj.name}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="truncate" style={{ maxWidth: "60%", color: "var(--text)" }}>{proj.name}</span>
-                      <span className="font-mono" style={{ color: "var(--muted)" }}>{formatHours(proj.hours)}</span>
+                    <div className="flex items-center justify-between text-xs mb-1 gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {proj.logoUrl ? (
+                          <img src={proj.logoUrl} alt={proj.companyName || ""} className="w-4 h-4 rounded object-contain shrink-0" style={{ opacity: 0.85 }} />
+                        ) : proj.companyName ? (
+                          <div className="w-4 h-4 rounded shrink-0 flex items-center justify-center text-[9px] font-bold" style={{ background: colors[idx] + "33", color: colors[idx] }}>
+                            {proj.companyName[0]}
+                          </div>
+                        ) : null}
+                        <span className="truncate" style={{ color: "var(--text)" }}>{proj.name}</span>
+                        {proj.companyName && proj.companyName !== proj.name && (
+                          <span className="truncate text-[10px] shrink-0" style={{ color: "var(--muted)" }}>{proj.companyName}</span>
+                        )}
+                      </div>
+                      <span className="font-mono shrink-0" style={{ color: "var(--muted)" }}>{formatHours(proj.hours)}</span>
                     </div>
                     <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
                       <div className="h-full rounded-full" style={{ width: `${percent}%`, background: colors[idx] }} />
