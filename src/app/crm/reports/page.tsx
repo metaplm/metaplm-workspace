@@ -11,7 +11,7 @@ interface ActivityRecord {
   createdAt: string;
   nextActionDate?: string;
   company?: { id: string; name: string } | null;
-  contact?: { id: string; firstName: string; lastName: string } | null;
+  contacts?: { id: string; firstName: string; lastName: string }[];
   deal?: { id: string; title: string } | null;
 }
 
@@ -96,7 +96,7 @@ export default function CRMReportsPage() {
         formatDate(a.createdAt),
         a.type,
         a.company?.name ?? "-",
-        a.contact ? `${a.contact.firstName} ${a.contact.lastName}` : "-",
+        a.contacts?.length ? a.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ") : "-",
         a.deal?.title ?? "-",
         a.notes ?? "",
       ])
@@ -222,7 +222,7 @@ export default function CRMReportsPage() {
                       <td className="py-2 px-4 text-white">{formatDate(activity.createdAt)}</td>
                       <td className="py-2 px-4">{activity.type}</td>
                       <td className="py-2 px-4">{activity.company?.name ?? "-"}</td>
-                      <td className="py-2 px-4">{activity.contact ? `${activity.contact.firstName} ${activity.contact.lastName}` : "-"}</td>
+                      <td className="py-2 px-4">{activity.contacts?.length ? activity.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ") : "-"}</td>
                       <td className="py-2 px-4">{activity.deal?.title ?? "-"}</td>
                     </tr>
                   ))}

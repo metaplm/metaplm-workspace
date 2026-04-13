@@ -26,7 +26,7 @@ interface DashData {
     conversionRate: number;
     upcomingNextActions: number;
   };
-  recentActivities: Array<{ id: string; type: string; notes: string; company?: { name: string }; contact?: { firstName: string; lastName: string }; createdAt: string }>;
+  recentActivities: Array<{ id: string; type: string; notes: string; company?: { name: string }; contacts?: { firstName: string; lastName: string }[]; createdAt: string }>;
 }
 
 const activityColor: Record<string, string> = {
@@ -247,7 +247,7 @@ export default function Dashboard() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium" style={{ color: activityColor[act.type] }}>{act.type}</span>
                     {act.company && <span className="text-xs" style={{ color: "var(--text)" }}>{act.company.name}</span>}
-                    {act.contact && <span className="text-xs" style={{ color: "var(--muted)" }}>{act.contact.firstName} {act.contact.lastName}</span>}
+                    {act.contacts && act.contacts.length > 0 && <span className="text-xs" style={{ color: "var(--muted)" }}>{act.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}</span>}
                   </div>
                   {act.notes && <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted)" }}>{act.notes}</div>}
                 </div>

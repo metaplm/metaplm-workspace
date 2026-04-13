@@ -18,7 +18,7 @@ export async function GET() {
     activityStats,
   ] = await Promise.all([
     prisma.deal.findMany({ include: { company: true } }),
-    prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 5, include: { company: true, contact: true } }),
+    prisma.activity.findMany({ orderBy: { createdAt: "desc" }, take: 5, include: { company: true, contacts: true } }),
     prisma.timeEntry.findMany({
       where: { date: { gte: monthStart } },
       include: { company: true, project: true },

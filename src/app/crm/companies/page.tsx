@@ -31,7 +31,7 @@ interface CompanyDetail {
   }>;
   activities: Array<{
     id: string; type: string; notes?: string; createdAt: string; nextActionDate?: string;
-    contact?: { id: string; firstName: string; lastName: string } | null;
+    contacts?: { id: string; firstName: string; lastName: string }[];
     deal?: { id: string; title: string } | null;
     parentId?: string | null;
   }>;
@@ -181,7 +181,7 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
                       </div>
                       {a.notes && <p className="text-xs line-clamp-2" style={{ color: "var(--text)", opacity: 0.85 }}>{a.notes}</p>}
                       <div className="flex gap-3 text-[11px]" style={{ color: "var(--muted)" }}>
-                        {a.contact && <span>👤 {a.contact.firstName} {a.contact.lastName}</span>}
+                        {a.contacts && a.contacts.length > 0 && <span>👤 {a.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}</span>}
                         {a.nextActionDate && <span className="flex items-center gap-1"><Calendar size={10} />{new Date(a.nextActionDate).toLocaleDateString("tr-TR")}</span>}
                       </div>
                     </div>

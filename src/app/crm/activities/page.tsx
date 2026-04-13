@@ -16,7 +16,7 @@ interface Activity {
   rootActivityId?: string | null;
   rootActivity?: { id: string; notes?: string; company?: { id: string; name: string; logoUrl?: string } | null } | null;
   company?: { id: string; name: string; logoUrl?: string } | null;
-  contact?: { id: string; firstName: string; lastName: string } | null;
+  contacts?: { id: string; firstName: string; lastName: string }[];
   deal?: { id: string; title: string } | null;
   children?: Activity[];
 }
@@ -40,7 +40,7 @@ const EMPTY_ACTIVITY = {
   createdAt: new Date().toISOString().slice(0, 10),
   source: "",
   companyId: "",
-  contactId: "",
+  contactIds: [] as string[],
   parentId: "",
   rootActivityId: "",
 };
@@ -163,7 +163,9 @@ function ActivityCard({
 
         {/* Footer */}
         <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--muted)" }}>
-          {activity.contact && <span>👤 {activity.contact.firstName} {activity.contact.lastName}</span>}
+          {activity.contacts && activity.contacts.length > 0 && (
+            <span>👤 {activity.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}</span>
+          )}
           {activity.source && isRootActivity && !isChild && (
             <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>📌 {activity.source}</span>
           )}
@@ -253,7 +255,7 @@ export default function ActivitiesPage() {
     return activities.filter(a => {
       if (filterType !== "ALL" && a.type !== filterType) return false;
       if (filterCompanyId && a.company?.id !== filterCompanyId) return false;
-      if (filterContactId && a.contact?.id !== filterContactId) return false;
+      if (filterContactId && !a.contacts?.some(c => c.id === filterContactId)) return false;
       return true;
     });
   }, [activities, filterType, filterCompanyId, filterContactId]);
@@ -266,6 +268,15 @@ export default function ActivitiesPage() {
     if (!form.companyId) return contacts;
     return contacts.filter(c => c.companyId === form.companyId);
   }, [contacts, form.companyId]);
+
+  const toggleContact = (contactId: string) => {
+    setForm(f => ({
+      ...f,
+      contactIds: f.contactIds.includes(contactId)
+        ? f.contactIds.filter(id => id !== contactId)
+        : [...f.contactIds, contactId],
+    }));
+  };
 
   // Contacts available in filter (optionally scoped to selected company)
   const filterContactOptions = useMemo(() => {
@@ -282,7 +293,7 @@ export default function ActivitiesPage() {
       createdAt: form.createdAt ? new Date(form.createdAt) : undefined,
     };
     if (form.companyId) payload.companyId = form.companyId;
-    if (form.contactId) payload.contactId = form.contactId;
+    payload.contactIds = form.contactIds;
     if (form.parentId) payload.parentId = form.parentId;
     if (form.source) payload.source = form.source;
     if (form.rootActivityId) payload.rootActivityId = form.rootActivityId;
@@ -324,7 +335,7 @@ export default function ActivitiesPage() {
       createdAt: activity.createdAt ? activity.createdAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
       source: activity.source || "",
       companyId: activity.company?.id || "",
-      contactId: activity.contact?.id || "",
+      contactIds: activity.contacts?.map(c => c.id) || [],
       parentId: activity.parentId || "",
       rootActivityId: activity.rootActivityId || "",
     });
@@ -343,7 +354,7 @@ export default function ActivitiesPage() {
       ...EMPTY_ACTIVITY,
       createdAt: new Date().toISOString().slice(0, 10),
       companyId: parent.company?.id || "",
-      contactId: parent.contact?.id || "",
+      contactIds: parent.contacts?.map(c => c.id) || [],
       parentId: parent.id,
       source: "",
       rootActivityId: "",
@@ -608,7 +619,7 @@ export default function ActivitiesPage() {
 
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Şirket</label>
-              <select className="text-sm" value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value, contactId: "" }))}>
+              <select className="text-sm" value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value, contactIds: [] }))}>
                 <option value="">— Seçilmedi —</option>
                 {companies.map(company => (
                   <option key={company.id} value={company.id}>{company.name}</option>
@@ -617,13 +628,46 @@ export default function ActivitiesPage() {
             </div>
 
             <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Kişi</label>
-              <select className="text-sm" value={form.contactId} onChange={e => setForm(f => ({ ...f, contactId: e.target.value }))}>
-                <option value="">— Seçilmedi —</option>
-                {contactOptions.map(contact => (
-                  <option key={contact.id} value={contact.id}>{contact.firstName} {contact.lastName}</option>
-                ))}
-              </select>
+              <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>
+                Kişiler
+                {form.contactIds.length > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>
+                    {form.contactIds.length} seçili
+                  </span>
+                )}
+              </label>
+              {contactOptions.length === 0 ? (
+                <div className="text-xs py-2 px-3 rounded-lg" style={{ color: "var(--muted)", background: "rgba(255,255,255,0.04)" }}>
+                  {form.companyId ? "Bu şirkete ait kişi bulunamadı" : "Önce şirket seçin veya tüm kişiler aşağıda"}
+                </div>
+              ) : (
+                <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)", maxHeight: 160, overflowY: "auto" }}>
+                  {contactOptions.map((contact, i) => {
+                    const selected = form.contactIds.includes(contact.id);
+                    return (
+                      <label
+                        key={contact.id}
+                        className="flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors"
+                        style={{
+                          background: selected ? "rgba(99,102,241,0.12)" : i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent",
+                          borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleContact(contact.id)}
+                          className="accent-indigo-500"
+                          style={{ width: 14, height: 14, flexShrink: 0 }}
+                        />
+                        <span className="text-sm" style={{ color: selected ? "#e0e7ff" : "var(--muted)" }}>
+                          {contact.firstName} {contact.lastName}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3">

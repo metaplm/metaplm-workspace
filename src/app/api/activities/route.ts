@@ -11,16 +11,16 @@ export async function GET(req: NextRequest) {
   const activities = await prisma.activity.findMany({
     where: {
       ...(companyId ? { companyId } : {}),
-      ...(contactId ? { contactId } : {}),
+      ...(contactId ? { contacts: { some: { id: contactId } } } : {}),
       parentId: null,
     },
     include: {
       company: true,
-      contact: true,
+      contacts: true,
       deal: true,
       rootActivity: { include: { company: true } },
       children: {
-        include: { company: true, contact: true, deal: true, rootActivity: { include: { company: true } } },
+        include: { company: true, contacts: true, deal: true, rootActivity: { include: { company: true } } },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const contactIds: string[] = body.contactIds || [];
   const activity = await prisma.activity.create({
     data: {
       type: body.type,
@@ -39,11 +40,11 @@ export async function POST(req: NextRequest) {
       createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
       source: body.source || null,
       companyId: body.companyId || null,
-      contactId: body.contactId || null,
+      contacts: contactIds.length ? { connect: contactIds.map(id => ({ id })) } : undefined,
       parentId: body.parentId || null,
       rootActivityId: body.rootActivityId || null,
     },
-    include: { company: true, contact: true, rootActivity: { include: { company: true } } },
+    include: { company: true, contacts: true, rootActivity: { include: { company: true } } },
   });
   return NextResponse.json(activity, { status: 201 });
 }

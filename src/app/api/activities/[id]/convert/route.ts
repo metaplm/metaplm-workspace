@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const activity = await prisma.activity.findUnique({
     where: { id: activityId },
-    include: { company: true, contact: true },
+    include: { company: true, contacts: true },
   });
 
   if (!activity) {
@@ -21,12 +21,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Activity already linked to a deal" }, { status: 409 });
   }
 
+  const firstContact = activity.contacts?.[0];
   const fallbackTitle =
     (typeof body?.title === "string" ? body.title.trim() : undefined) ??
     activity.notes?.slice(0, 80) ??
     `${activity.type} with ${
       activity.company?.name ??
-      (activity.contact ? `${activity.contact.firstName ?? ""} ${activity.contact.lastName ?? ""}`.trim() : "prospect")
+      (firstContact ? `${firstContact.firstName ?? ""} ${firstContact.lastName ?? ""}`.trim() : "prospect")
     }`.trim();
 
   const parsedAmount = typeof body?.amount === "number" ? body.amount : Number(body?.amount ?? 0);

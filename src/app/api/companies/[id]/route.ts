@@ -12,7 +12,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
       },
       activities: {
         orderBy: { createdAt: "desc" },
-        include: { contact: true, deal: true },
+        include: { contacts: true, deal: true },
       },
       timeEntries: {
         orderBy: { date: "desc" },
