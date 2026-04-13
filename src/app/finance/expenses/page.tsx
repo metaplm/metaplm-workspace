@@ -82,11 +82,14 @@ export default function ExpensesPage() {
   const [srReplace, setSrReplace] = useState("");
   const [bulkCat, setBulkCat] = useState("");
 
-  const loadTable = (replace: boolean, month: string) => {
+  const loadTable = (replace: boolean, month: string, searchVal: string, cats: string[]) => {
     const skip = replace ? 0 : expenses.length;
     setTableLoading(true);
-    const monthParam = month ? `&month=${month}` : "";
-    fetch(`/api/expenses?skip=${skip}&take=${PAGE_SIZE}${monthParam}`)
+    const params = new URLSearchParams({ skip: String(skip), take: String(PAGE_SIZE) });
+    if (month) params.set("month", month);
+    if (searchVal.trim()) params.set("search", searchVal.trim());
+    if (cats.length > 0) params.set("categories", cats.join(","));
+    fetch(`/api/expenses?${params}`)
       .then(r => r.json())
       .then(({ expenses: data, total: t }) => {
         setExpenses(prev => replace ? data : [...prev, ...data]);
@@ -100,13 +103,21 @@ export default function ExpensesPage() {
     setStatsLoading(true);
     fetch("/api/expenses/stats").then(r => r.json()).then(setStats).finally(() => setStatsLoading(false));
     fetch("/api/deals").then(r => r.json()).then(setDeals);
-    loadTable(true, filterMonth);
+    loadTable(true, filterMonth, search, filterCats);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload table whenever month filter changes
+  // Reload when month or category filter changes immediately
   useEffect(() => {
-    loadTable(true, filterMonth);
-  }, [filterMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadTable(true, filterMonth, search, filterCats);
+  }, [filterMonth, filterCats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounce search filter reload
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadTable(true, filterMonth, search, filterCats);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
     setSaving(true);
@@ -123,7 +134,7 @@ export default function ExpensesPage() {
       setEditingId(null);
       // Refresh stats and table
       fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
-      loadTable(true, filterMonth);
+      loadTable(true, filterMonth, search, filterCats);
     } finally { setSaving(false); }
   };
 
@@ -131,7 +142,7 @@ export default function ExpensesPage() {
     await fetch(`/api/expenses/${id}`, { method: "DELETE" });
     setShowDeleteConfirm(null);
     fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
-    loadTable(true, filterMonth);
+    loadTable(true, filterMonth, search, filterCats);
   };
 
   const openEdit = (expense: Expense) => {
@@ -269,7 +280,7 @@ export default function ExpensesPage() {
       closeBulk();
       // Refresh stats and table
       fetch("/api/expenses/stats").then(r => r.json()).then(setStats);
-      loadTable(true, filterMonth);
+      loadTable(true, filterMonth, search, filterCats);
     } finally { setBulkSaving(false); }
   };
 
@@ -280,14 +291,8 @@ export default function ExpensesPage() {
   // Available months from stats
   const availableMonths = stats?.availableMonths ?? [];
 
-  // Filtered expenses (client-side, from loaded table records)
-  const filtered = useMemo(() => {
-    return (expenses || []).filter(e => {
-      if (search && !((e.description || "").toLowerCase().includes(search.toLowerCase()))) return false;
-      if (filterCats.length > 0 && !filterCats.includes(e.category)) return false;
-      return true;
-    });
-  }, [expenses, search, filterCats]);
+  // All loaded expenses are already server-filtered — no client-side filter needed
+  const filtered = expenses || [];
 
   const hasFilters = search || filterCats.length > 0 || filterMonth;
 
@@ -320,9 +325,7 @@ export default function ExpensesPage() {
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
             {tableLoading
               ? "Yükleniyor..."
-              : search || filterCats.length > 0
-                ? `${filtered.length} / ${expenses.length} kayıt`
-                : `${expenses.length} kayıt`
+              : `${expenses.length}${total > expenses.length ? ` / ${total}` : ""} kayıt`
             }
           </p>
         </div>
@@ -540,7 +543,7 @@ export default function ExpensesPage() {
           )}
           {expenses.length < total && (
             <button
-              onClick={() => loadTable(false, filterMonth)}
+              onClick={() => loadTable(false, filterMonth, search, filterCats)}
               className="w-full py-2.5 text-xs transition-colors"
               style={{ color: "var(--muted)", borderTop: "1px solid rgba(255,255,255,0.04)" }}
               onMouseEnter={e => (e.currentTarget.style.color = "#a5b4fc")}
