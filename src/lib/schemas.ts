@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
 const dateStr = z.string().max(100).refine(s => !isNaN(Date.parse(s)), 'Invalid date')
-const optionalDate = dateStr.optional().nullable()
+// Empty string from form inputs is treated as absent
+const optionalDate = z.preprocess(
+  v => (v === '' ? undefined : v),
+  dateStr.optional().nullable(),
+)
 const optionalId = z.string().max(100).optional().nullable()
 
 export const CompanySchema = z.object({
