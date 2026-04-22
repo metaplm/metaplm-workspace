@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseTimeInput } from "@/lib/utils";
+import { TimeEntrySchema } from "@/lib/schemas";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -46,11 +47,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { value, unit, ...rest } = body;
-  const hours = unit ? parseTimeInput(String(value), unit) : parseFloat(value || rest.hours);
+  const parsed = TimeEntrySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const { value, unit, date, hours: rawHours, ...rest } = parsed.data;
+  const hours = unit ? parseTimeInput(String(value), unit) : parseFloat(String(value ?? rawHours));
 
   const entry = await prisma.timeEntry.create({
-    data: { ...rest, hours, date: new Date(rest.date) },
+    data: { ...rest, hours, date: new Date(date) },
     include: { company: true, project: true },
   });
   return NextResponse.json(entry, { status: 201 });

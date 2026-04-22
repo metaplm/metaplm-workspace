@@ -1,3 +1,5 @@
+import { isAllowedUrl } from '@/lib/url-validator'
+
 export interface ScrapedCompany {
   name?: string;
   description?: string;
@@ -34,6 +36,11 @@ function decodeHtmlEntities(text: string): string {
 
 export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany> {
   const normalizedUrl = url.startsWith("http") ? url : `https://${url}`;
+
+  if (!isAllowedUrl(normalizedUrl)) {
+    throw new Error('URL not allowed');
+  }
+
   const hostname = new URL(normalizedUrl).hostname;
 
   try {
@@ -81,7 +88,6 @@ export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany>
         const favUrl = faviconMatch[1];
         result.logoUrl = favUrl.startsWith("http") ? favUrl : favUrl.startsWith("//") ? `https:${favUrl}` : `${normalizedUrl}${favUrl.startsWith("/") ? "" : "/"}${favUrl}`;
       } else {
-        // Google favicon service as fallback
         result.logoUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`;
       }
     }
@@ -94,7 +100,6 @@ export async function scrapeCompanyFromUrl(url: string): Promise<ScrapedCompany>
 
     return result;
   } catch {
-    // Return partial data with clearbit logo fallback
     return {
       website: normalizedUrl,
       logoUrl: `https://www.google.com/s2/favicons?domain=${hostname}&sz=128`,

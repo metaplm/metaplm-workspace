@@ -1,39 +1,34 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { verifyAuthToken, AUTH_COOKIE_NAME } from '@/lib/auth'
 
 const PUBLIC_ROUTES = ['/login', '/api/auth/login', '/api/auth/logout']
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow public routes
-  if (PUBLIC_ROUTES.includes(pathname)) {
-    return NextResponse.next()
-  }
+  if (PUBLIC_ROUTES.includes(pathname)) return NextResponse.next()
 
-  // API routes: allow browser sessions (cookie) OR valid API key header
   if (pathname.startsWith('/api/')) {
     const apiKey = process.env.METAPLM_API_KEY
     const providedKey = request.headers.get('x-api-key')
-    const hasCookie = !!request.cookies.get('auth_token')?.value
+    const cookieToken = request.cookies.get(AUTH_COOKIE_NAME)?.value
 
-    // If an API key is configured, require either a valid key or a browser cookie
-    if (apiKey && !hasCookie && providedKey !== apiKey) {
+    const hasValidCookie = cookieToken ? !!(await verifyAuthToken(cookieToken)) : false
+    const hasValidApiKey = !!(apiKey && providedKey === apiKey)
+
+    if (!hasValidCookie && !hasValidApiKey) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     return NextResponse.next()
   }
 
-  // Check if auth cookie exists
-  const token = request.cookies.get('auth_token')?.value
-
-  if (!token) {
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
+  if (!token || !(await verifyAuthToken(token))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Cookie exists, allow access
-  // JWT verification will happen in API routes if needed
   return NextResponse.next()
 }
 

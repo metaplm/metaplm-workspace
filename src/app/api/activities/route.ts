@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ActivitySchema } from "@/lib/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -31,18 +32,17 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const contactIds: string[] = body.contactIds || [];
+  const parsed = ActivitySchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const { contactIds, nextActionDate, createdAt, ...rest } = parsed.data;
   const activity = await prisma.activity.create({
     data: {
-      type: body.type,
-      notes: body.notes,
-      nextActionDate: body.nextActionDate ? new Date(body.nextActionDate) : null,
-      createdAt: body.createdAt ? new Date(body.createdAt) : undefined,
-      source: body.source || null,
-      companyId: body.companyId || null,
-      contacts: contactIds.length ? { connect: contactIds.map(id => ({ id })) } : undefined,
-      parentId: body.parentId || null,
-      rootActivityId: body.rootActivityId || null,
+      ...rest,
+      nextActionDate: nextActionDate ? new Date(nextActionDate) : null,
+      createdAt: createdAt ? new Date(createdAt) : undefined,
+      contacts: contactIds?.length ? { connect: contactIds.map(id => ({ id })) } : undefined,
     },
     include: { company: true, contacts: true, rootActivity: { include: { company: true } } },
   });

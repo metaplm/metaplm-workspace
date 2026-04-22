@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DealSchema } from "@/lib/schemas";
 
 export async function GET() {
   const deals = await prisma.deal.findMany({
@@ -14,10 +15,15 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
+  const parsed = DealSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const { expectedCloseDate, ...rest } = parsed.data;
   const deal = await prisma.deal.create({
     data: {
-      ...body,
-      expectedCloseDate: body.expectedCloseDate ? new Date(body.expectedCloseDate) : null,
+      ...rest,
+      expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
     },
     include: { company: true },
   });

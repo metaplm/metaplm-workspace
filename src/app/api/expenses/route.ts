@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ExpenseSchema } from "@/lib/schemas";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -9,12 +10,13 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search") ?? "";
   const categoriesParam = searchParams.get("categories") ?? ""; // comma-separated
 
-  // Build where clause
   const where: Record<string, unknown> = {};
 
   if (month) {
     const [y, m] = month.split("-").map(Number);
-    where.date = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+    if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+      where.date = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+    }
   }
   if (search.trim()) {
     where.description = { contains: search.trim(), mode: "insensitive" };
@@ -24,7 +26,6 @@ export async function GET(req: NextRequest) {
     if (cats.length > 0) where.category = { in: cats };
   }
 
-  // Paginated mode: ?skip=N&take=N — returns { expenses, total }
   if (take > 0) {
     const [expenses, total] = await Promise.all([
       prisma.expense.findMany({
@@ -39,7 +40,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ expenses, total });
   }
 
-  // Legacy: return all (used by other pages/reports)
   const expenses = await prisma.expense.findMany({
     where: where as any,
     include: { deal: { include: { company: true } } },
@@ -50,18 +50,17 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const data: Record<string, unknown> = { ...body };
-  
-  // Convert date string to Date object
-  data.date = body.date ? new Date(body.date) : new Date();
-  
-  // Convert empty description to null
-  if (data.description === "") {
-    data.description = null;
+  const parsed = ExpenseSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  
+  const { date, ...rest } = parsed.data;
   const expense = await prisma.expense.create({
-    data: data as any,
+    data: {
+      ...rest,
+      description: rest.description || null,
+      date: date ? new Date(date) : new Date(),
+    },
     include: { deal: { include: { company: true } } },
   });
   return NextResponse.json(expense, { status: 201 });
