@@ -171,7 +171,7 @@ export default function Dashboard() {
               {d.topExpenseCategories.map((cat, idx) => {
                 const percent = d.monthlyExpenses > 0 ? (cat.amount / d.monthlyExpenses) * 100 : 0;
                 const colors = ["#ef4444", "#f59e0b", "#10b981"];
-                const labels: Record<string, string> = { ARAC: "Vehicle", YEMEK: "Food", MUHASEBE: "Accounting", DEMIRBAS: "Equipment", GENEL: "General", VERGI: "Tax", KIRA: "Rent", AKARYAKIT: "Fuel" };
+                const labels: Record<string, string> = { ARAC: "Araç Kirası", ARAC_GENEL: "Araç Genel", AKARYAKIT: "Akaryakıt", YEMEK: "Yemek", SEYAHAT: "Seyahat", YAZILIM: "Yazılım", OFIS: "Ofis", KIRA: "Kira", MUHASEBE: "Muhasebe", DEMIRBAS: "Demirbaş", SIGORTA: "Sigorta", VERGI: "Vergi", GENEL: "Genel" };
                 return (
                   <div key={cat.category}>
                     <div className="flex items-center justify-between text-xs mb-1">
