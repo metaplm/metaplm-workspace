@@ -1,0 +1,5 @@
+ALTER TYPE "ExpenseCategory" ADD VALUE 'ARAC_GENEL';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'SEYAHAT';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'YAZILIM';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'OFIS';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'SIGORTA';

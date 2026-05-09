@@ -32,17 +32,22 @@ interface Stats {
 }
 
 const CATEGORIES = [
-  { value: "ARAC", label: "Araç" },
+  { value: "ARAC", label: "Araç Kirası" },
+  { value: "ARAC_GENEL", label: "Araç Genel" },
+  { value: "AKARYAKIT", label: "Akaryakıt" },
   { value: "YEMEK", label: "Yemek" },
+  { value: "SEYAHAT", label: "Seyahat" },
+  { value: "YAZILIM", label: "Yazılım" },
+  { value: "OFIS", label: "Ofis" },
+  { value: "KIRA", label: "Kira" },
   { value: "MUHASEBE", label: "Muhasebe" },
   { value: "DEMIRBAS", label: "Demirbaş" },
-  { value: "GENEL", label: "Genel" },
+  { value: "SIGORTA", label: "Sigorta" },
   { value: "VERGI", label: "Vergi" },
-  { value: "KIRA", label: "Kira" },
-  { value: "AKARYAKIT", label: "Akaryakıt" },
+  { value: "GENEL", label: "Genel" },
 ];
 const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: new Date().toISOString().slice(0, 10), dealId: "" };
-const PIE_COLORS = ["#6366f1", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#60a5fa", "#f472b6", "#fb923c"];
+const PIE_COLORS = ["#6366f1", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#60a5fa", "#f472b6", "#fb923c", "#4ade80", "#38bdf8", "#e879f9", "#facc15", "#94a3b8"];
 const PAGE_SIZE = 20;
 
 export default function ExpensesPage() {

@@ -162,6 +162,7 @@ enum InvoiceStatus {
 
 enum ExpenseCategory {
   ARAC
+  ARAC_GENEL
   YEMEK
   MUHASEBE
   DEMIRBAS
@@ -169,6 +170,10 @@ enum ExpenseCategory {
   VERGI
   KIRA
   AKARYAKIT
+  SEYAHAT
+  YAZILIM
+  OFIS
+  SIGORTA
 }
 
 model Expense {
