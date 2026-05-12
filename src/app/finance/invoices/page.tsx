@@ -69,11 +69,13 @@ export default function InvoicesPage() {
   const [kbError, setKbError] = useState<string | null>(null);
   const [kbLastSync, setKbLastSync] = useState<Date | null>(null);
 
-  const loadKolayBi = async () => {
+  const loadKolayBi = async (currentTab: "giden" | "gelen") => {
     setKbLoading(true);
     setKbError(null);
+    setKbInvoices([]);
+    const docType = currentTab === "giden" ? "SALE_INVOICE" : "PURCHASE_INVOICE";
     try {
-      const res = await fetch("/api/kolaybi?resource=invoices");
+      const res = await fetch(`/api/kolaybi?resource=invoices&doc_type=${docType}`);
       const data = await res.json();
       if (!res.ok) { setKbError(data.error ?? "Bağlantı hatası"); return; }
       setKbInvoices(Array.isArray(data) ? data : (data.data ?? []));
@@ -82,7 +84,7 @@ export default function InvoicesPage() {
     finally { setKbLoading(false); }
   };
 
-  useEffect(() => { if ((tab === "giden" || tab === "gelen") && kbInvoices.length === 0 && !kbError) loadKolayBi(); }, [tab]);
+  useEffect(() => { if (tab === "giden" || tab === "gelen") loadKolayBi(tab); }, [tab]);
 
   const load = () => {
     setLoading(true);
@@ -164,7 +166,7 @@ export default function InvoicesPage() {
           </button>
         )}
         {(tab === "giden" || tab === "gelen") && (
-          <button className="btn-ghost flex items-center gap-2 text-sm" onClick={loadKolayBi} disabled={kbLoading}>
+          <button className="btn-ghost flex items-center gap-2 text-sm" onClick={() => loadKolayBi(tab as "giden" | "gelen")} disabled={kbLoading}>
             <RefreshCw size={14} className={kbLoading ? "animate-spin" : ""} /> Yenile
           </button>
         )}
@@ -257,8 +259,7 @@ export default function InvoicesPage() {
       {/* ── e-Fatura (KolayBi) tab ── */}
       {(tab === "giden" || tab === "gelen") && (<>
         {(() => {
-          const group = tab === "giden" ? "sale" : "purchase";
-          const filtered = kbInvoices.filter(i => i.commercial_doc_type.group === group);
+          const filtered = kbInvoices;
           const notSent = filtered.filter(i => i.e_document_status === "not_sent").length;
           return (<>
             {kbError && (

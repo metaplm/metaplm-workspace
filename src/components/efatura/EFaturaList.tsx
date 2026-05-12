@@ -33,11 +33,13 @@ export default function EFaturaList({ type }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
+  const docType = type === "giden" ? "SALE_INVOICE" : "PURCHASE_INVOICE";
+
   const load = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/kolaybi?resource=invoices");
+      const res = await fetch(`/api/kolaybi?resource=invoices&doc_type=${docType}`);
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Bağlantı hatası"); return; }
       const list: KolayBiInvoice[] = Array.isArray(data) ? data : (data.data ?? []);
@@ -47,10 +49,9 @@ export default function EFaturaList({ type }: Props) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [type]);
 
-  const group = type === "giden" ? "sale" : "purchase";
-  const invoices = all.filter(i => i.commercial_doc_type.group === group);
+  const invoices = all;
   const totalAmount = invoices.reduce((s, i) => s + (i.total?.grand_total ?? 0), 0);
   const notSentCount = invoices.filter(i => i.e_document_status === "not_sent").length;
 
