@@ -12,7 +12,7 @@ interface KolayBiInvoice {
   currency: string;
   issue_date: string;
   e_document_status: string;
-  commercial_doc_type: { description: string };
+  commercial_doc_type: { description: string; group: string };
   commercial_doc_status: { description: string };
   associate: { full_name: string };
   total: { grand_total: number; total_vat: number };
@@ -51,7 +51,7 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; icon: any }> = {
 const EMPTY = { amount: "", currency: "TRY", vatRate: "20", status: "DRAFT", dueDate: "", dealId: "", notes: "" };
 
 export default function InvoicesPage() {
-  const [tab, setTab] = useState<"internal" | "efatura">("internal");
+  const [tab, setTab] = useState<"internal" | "giden" | "gelen">("internal");
 
   /* ── internal invoices state ── */
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -82,7 +82,7 @@ export default function InvoicesPage() {
     finally { setKbLoading(false); }
   };
 
-  useEffect(() => { if (tab === "efatura" && kbInvoices.length === 0 && !kbError) loadKolayBi(); }, [tab]);
+  useEffect(() => { if ((tab === "giden" || tab === "gelen") && kbInvoices.length === 0 && !kbError) loadKolayBi(); }, [tab]);
 
   const load = () => {
     setLoading(true);
@@ -155,7 +155,7 @@ export default function InvoicesPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Invoices</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
-            {tab === "internal" ? `${invoices.length} invoices total` : "KolayBi e-Fatura"}
+            {tab === "internal" ? `${invoices.length} invoices total` : tab === "giden" ? "KolayBi · Satış faturaları" : "KolayBi · Alış faturaları"}
           </p>
         </div>
         {tab === "internal" && (
@@ -163,7 +163,7 @@ export default function InvoicesPage() {
             <Plus size={15} /> New Invoice
           </button>
         )}
-        {tab === "efatura" && (
+        {(tab === "giden" || tab === "gelen") && (
           <button className="btn-ghost flex items-center gap-2 text-sm" onClick={loadKolayBi} disabled={kbLoading}>
             <RefreshCw size={14} className={kbLoading ? "animate-spin" : ""} /> Yenile
           </button>
@@ -172,7 +172,7 @@ export default function InvoicesPage() {
 
       {/* Tab bar */}
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", width: "fit-content" }}>
-        {([["internal", "Dahili Faturalar"], ["efatura", "e-Fatura (KolayBi)"]] as const).map(([key, label]) => (
+        {([["internal", "Dahili"], ["giden", "e-Fatura Giden"], ["gelen", "e-Fatura Gelen"]] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -182,7 +182,6 @@ export default function InvoicesPage() {
               : { color: "var(--muted)" }}
           >
             {label}
-            {key === "efatura" && <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>Sandbox</span>}
           </button>
         ))}
       </div>
@@ -256,93 +255,98 @@ export default function InvoicesPage() {
       </>)}
 
       {/* ── e-Fatura (KolayBi) tab ── */}
-      {tab === "efatura" && (<>
-        {kbError && (
-          <div className="glass rounded-xl p-4 flex items-center gap-3" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
-            <AlertCircle size={16} style={{ color: "#f87171" }} />
-            <span className="text-sm" style={{ color: "#f87171" }}>{kbError}</span>
-          </div>
-        )}
-        {!kbError && !kbLoading && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="glass rounded-xl p-4">
-              <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Fatura</div>
-              <div className="text-xl font-semibold text-white">{kbInvoices.length}</div>
-            </div>
-            <div className="glass rounded-xl p-4">
-              <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Tutar</div>
-              <div className="text-xl font-semibold font-mono" style={{ color: "#34d399" }}>
-                {formatCurrency(kbInvoices.reduce((s, i) => s + (i.total?.grand_total ?? 0), 0), "TRY")}
+      {(tab === "giden" || tab === "gelen") && (<>
+        {(() => {
+          const group = tab === "giden" ? "sale" : "purchase";
+          const filtered = kbInvoices.filter(i => i.commercial_doc_type.group === group);
+          const notSent = filtered.filter(i => i.e_document_status === "not_sent").length;
+          return (<>
+            {kbError && (
+              <div className="glass rounded-xl p-4 flex items-center gap-3" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+                <AlertCircle size={16} style={{ color: "#f87171" }} />
+                <span className="text-sm" style={{ color: "#f87171" }}>{kbError}</span>
               </div>
-            </div>
-            <div className="glass rounded-xl p-4 flex items-center gap-3">
-              <Send size={16} style={{ color: kbInvoices.filter(i => i.e_document_status === "not_sent").length > 0 ? "#fbbf24" : "#34d399" }} />
-              <div>
-                <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>Gönderilmemiş</div>
-                <div className="text-xl font-semibold" style={{ color: "#fbbf24" }}>
-                  {kbInvoices.filter(i => i.e_document_status === "not_sent").length}
+            )}
+            {!kbError && !kbLoading && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="glass rounded-xl p-4">
+                  <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Fatura</div>
+                  <div className="text-xl font-semibold text-white">{filtered.length}</div>
+                </div>
+                <div className="glass rounded-xl p-4">
+                  <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Tutar</div>
+                  <div className="text-xl font-semibold font-mono" style={{ color: "#34d399" }}>
+                    {formatCurrency(filtered.reduce((s, i) => s + (i.total?.grand_total ?? 0), 0), "TRY")}
+                  </div>
+                </div>
+                <div className="glass rounded-xl p-4 flex items-center gap-3">
+                  <Send size={16} style={{ color: notSent > 0 ? "#fbbf24" : "#34d399" }} />
+                  <div>
+                    <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>{tab === "giden" ? "Gönderilmemiş" : "İşlenmemiş"}</div>
+                    <div className="text-xl font-semibold" style={{ color: notSent > 0 ? "#fbbf24" : "#34d399" }}>{notSent}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-        <div className="space-y-3">
-          {kbLoading && (
-            <div className="glass rounded-xl p-6 text-center text-sm animate-pulse" style={{ color: "var(--muted)" }}>
-              KolayBi'den faturalar yükleniyor...
-            </div>
-          )}
-          {!kbLoading && !kbError && kbInvoices.length === 0 && (
-            <div className="glass rounded-xl p-12 text-center">
-              <FileText size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
-              <div className="text-sm text-white mb-1">Fatura bulunamadı</div>
-              <div className="text-xs" style={{ color: "var(--muted)" }}>Sandbox ortamında henüz fatura yok</div>
-            </div>
-          )}
-          {!kbLoading && kbInvoices.map(inv => {
-            const docSt = E_DOC_LABEL[inv.e_document_status] ?? { label: inv.e_document_status, color: "#94a3b8" };
-            return (
-              <div key={inv.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(99,102,241,0.15)" }}>
-                  <FileText size={15} style={{ color: "#6366f1" }} />
+            )}
+            <div className="space-y-3">
+              {kbLoading && (
+                <div className="glass rounded-xl p-6 text-center text-sm animate-pulse" style={{ color: "var(--muted)" }}>
+                  KolayBi'den faturalar yükleniyor...
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm font-semibold text-white">#{inv.id}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
-                      {inv.commercial_doc_type.description}
-                    </span>
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
-                    {inv.associate.full_name}
-                    {inv.issue_date && ` · ${new Date(inv.issue_date).toLocaleDateString("tr-TR")}`}
-                  </div>
+              )}
+              {!kbLoading && !kbError && filtered.length === 0 && (
+                <div className="glass rounded-xl p-12 text-center">
+                  <FileText size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
+                  <div className="text-sm text-white mb-1">{tab === "giden" ? "Giden fatura bulunamadı" : "Gelen fatura bulunamadı"}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>Sandbox ortamında henüz fatura yok</div>
                 </div>
-                <div className="text-right shrink-0">
-                  <div className="font-semibold font-mono text-sm text-white">
-                    {formatCurrency(inv.total?.grand_total ?? 0, inv.currency.toUpperCase())}
-                  </div>
-                  {inv.total?.total_vat > 0 && (
-                    <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
-                      KDV: {formatCurrency(inv.total.total_vat, inv.currency.toUpperCase())}
+              )}
+              {!kbLoading && filtered.map(inv => {
+                const docSt = E_DOC_LABEL[inv.e_document_status] ?? { label: inv.e_document_status, color: "#94a3b8" };
+                return (
+                  <div key={inv.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(99,102,241,0.15)" }}>
+                      <FileText size={15} style={{ color: "#6366f1" }} />
                     </div>
-                  )}
-                </div>
-                <div className="text-xs px-2 py-1 rounded-lg font-medium shrink-0" style={{ background: `${docSt.color}20`, color: docSt.color }}>
-                  {docSt.label}
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-sm font-semibold text-white">#{inv.id}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
+                          {inv.commercial_doc_type.description}
+                        </span>
+                      </div>
+                      <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                        {inv.associate.full_name}
+                        {inv.issue_date && ` · ${new Date(inv.issue_date).toLocaleDateString("tr-TR")}`}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold font-mono text-sm text-white">
+                        {formatCurrency(inv.total?.grand_total ?? 0, inv.currency.toUpperCase())}
+                      </div>
+                      {inv.total?.total_vat > 0 && (
+                        <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
+                          KDV: {formatCurrency(inv.total.total_vat, inv.currency.toUpperCase())}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs px-2 py-1 rounded-lg font-medium shrink-0" style={{ background: `${docSt.color}20`, color: docSt.color }}>
+                      {docSt.label}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {kbLastSync && (
+              <div className="text-center">
+                <a href="https://ofis-sandbox.kolaybi.com" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+                  <ExternalLink size={12} /> KolayBi Sandbox Paneli
+                </a>
               </div>
-            );
-          })}
-        </div>
-        {kbLastSync && (
-          <div className="text-center">
-            <a href="https://ofis-sandbox.kolaybi.com" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
-              <ExternalLink size={12} /> KolayBi Sandbox Paneli
-            </a>
-          </div>
-        )}
+            )}
+          </>);
+        })()}
       </>)}
 
       {showModal && (<ModalPortal>

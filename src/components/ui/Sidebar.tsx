@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X, FolderKanban, Stamp } from "lucide-react";
+import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X, FolderKanban, Send, Download } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -19,7 +19,8 @@ const nav = [
   { label: "Reports", href: "/timesheet/reports", icon: BarChart3 },
   { label: "Finance", href: null, divider: true },
   { label: "Invoices", href: "/finance/invoices", icon: FileText },
-  { label: "e-Fatura", href: "/finance/efatura", icon: Stamp },
+  { label: "e-Fatura Giden", href: "/finance/efatura/giden", icon: Send },
+  { label: "e-Fatura Gelen", href: "/finance/efatura/gelen", icon: Download },
   { label: "Expenses", href: "/finance/expenses", icon: Receipt },
   { label: "Dashboard", href: "/finance", icon: DollarSign },
   { label: "Reports", href: "/finance/reports", icon: BarChart3 },
