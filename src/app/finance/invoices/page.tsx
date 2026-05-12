@@ -73,7 +73,7 @@ export default function InvoicesPage() {
     setKbLoading(true);
     setKbError(null);
     setKbInvoices([]);
-    const docType = currentTab === "giden" ? "SALE_INVOICE" : "PURCHASE_INVOICE";
+    const docType = currentTab === "giden" ? "sale_invoice" : "purchase_invoice";
     try {
       const res = await fetch(`/api/kolaybi?resource=invoices&doc_type=${docType}`);
       const data = await res.json();

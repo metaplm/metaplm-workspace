@@ -41,14 +41,14 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const resource = searchParams.get("resource") ?? "invoices";
-  const docType = searchParams.get("doc_type"); // SALE_INVOICE | PURCHASE_INVOICE
+  const docType = searchParams.get("doc_type"); // sale_invoice | purchase_invoice
 
   const allowed = ["invoices", "associates", "products"];
   if (!allowed.includes(resource)) {
     return NextResponse.json({ error: "Invalid resource" }, { status: 400 });
   }
 
-  const qs = docType ? `?doc_type=${encodeURIComponent(docType)}` : "";
+  const qs = docType ? `?type=${encodeURIComponent(docType)}` : "";
 
   try {
     const data = await kolaybiGet(`/${resource}${qs}`);

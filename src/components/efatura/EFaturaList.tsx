@@ -33,7 +33,7 @@ export default function EFaturaList({ type }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
-  const docType = type === "giden" ? "SALE_INVOICE" : "PURCHASE_INVOICE";
+  const docType = type === "giden" ? "sale_invoice" : "purchase_invoice";
 
   const load = async () => {
     setLoading(true);
