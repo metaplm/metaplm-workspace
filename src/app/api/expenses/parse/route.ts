@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Groq from "groq-sdk";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_VALUES } from "@/lib/expense-categories";
 
 const MAX_TEXT_LENGTH = 10000;
 
@@ -20,14 +21,9 @@ export async function POST(req: NextRequest) {
   const prompt = `Sen bir muhasebe asistanısın. Verilen metinden harcamaları çıkar.
 
 Kategoriler:
-- ARAC: araç, taşıt, otopark, köprü, otoyol geçiş
-- YEMEK: yemek, restoran, kafe, market, bakkal, manav, supermarket
-- MUHASEBE: muhasebe, mali müşavir, smmm, noter hizmetleri
-- DEMIRBAS: ekipman, bilgisayar, mobilya, ofis malzemesi
-- GENEL: diğer, genel harcamalar
-- VERGI: vergi, sgk, belediye vergisi
-- KIRA: kira, aidat
-- AKARYAKIT: yakıt, benzin, motorin, LPG, petrol ofisi, shell, bp, opet, total
+${EXPENSE_CATEGORIES.map(c => `- ${c.value}: ${c.hint}`).join("\n")}
+
+Kategori seçerken satıcı adına ve tutara birlikte bak: petrol istasyonunda 1000 TL üzeri tutar büyük olasılıkla AKARYAKIT, küçük tutar (ör. 500 TL altı) market/büfe alışverişi olabilir (YEMEK).
 
 Para birimi bulunamazsa TRY varsay. Tarih bulunamazsa bugünü kullan: ${today}.
 Alacak/gelir işlemlerini (+ ile gösterilen) dahil etme, sadece harcamaları (borç/gider) çıkar.
@@ -69,7 +65,7 @@ ${safeText}
       description: String(e.description || ""),
       amount: Math.abs(Number(e.amount)),
       currency: ["TRY", "USD", "EUR"].includes(String(e.currency)) ? String(e.currency) : "TRY",
-      category: ["ARAC", "YEMEK", "MUHASEBE", "DEMIRBAS", "GENEL", "VERGI", "KIRA", "AKARYAKIT"].includes(String(e.category))
+      category: (EXPENSE_CATEGORY_VALUES as readonly string[]).includes(String(e.category))
         ? String(e.category)
         : "GENEL",
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(e.date)) ? String(e.date) : today,

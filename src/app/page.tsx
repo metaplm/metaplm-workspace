@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { TrendingUp, Clock, DollarSign, AlertTriangle, Activity, CheckCircle } from "lucide-react";
 import { formatCurrency, formatHours } from "@/lib/utils";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expense-categories";
 
 interface DashData {
   totalPipeline: number;
@@ -171,7 +172,7 @@ export default function Dashboard() {
               {d.topExpenseCategories.map((cat, idx) => {
                 const percent = d.monthlyExpenses > 0 ? (cat.amount / d.monthlyExpenses) * 100 : 0;
                 const colors = ["#ef4444", "#f59e0b", "#10b981"];
-                const labels: Record<string, string> = { ARAC: "Araç Kirası", ARAC_GENEL: "Araç Genel", AKARYAKIT: "Akaryakıt", YEMEK: "Yemek", SEYAHAT: "Seyahat", YAZILIM: "Yazılım", OFIS: "Ofis", KIRA: "Kira", MUHASEBE: "Muhasebe", DEMIRBAS: "Demirbaş", SIGORTA: "Sigorta", VERGI: "Vergi", GENEL: "Genel" };
+                const labels = EXPENSE_CATEGORY_LABELS;
                 return (
                   <div key={cat.category}>
                     <div className="flex items-center justify-between text-xs mb-1">

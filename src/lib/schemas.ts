@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { EXPENSE_CATEGORY_VALUES } from './expense-categories'
 
 const dateStr = z.string().max(100).refine(s => !isNaN(Date.parse(s)), 'Invalid date')
 // Empty string from form inputs is treated as absent
@@ -52,7 +53,7 @@ export const ExpenseSchema = z.object({
   description: z.string().max(500).optional().nullable(),
   amount: z.number().positive(),
   currency: z.enum(['USD', 'EUR', 'TRY']).optional(),
-  category: z.enum(['ARAC', 'YEMEK', 'MUHASEBE', 'DEMIRBAS', 'GENEL', 'VERGI', 'KIRA', 'AKARYAKIT']).optional(),
+  category: z.enum(EXPENSE_CATEGORY_VALUES).optional(),
   date: z.string().max(100).optional().nullable(),
   dealId: optionalId,
 })

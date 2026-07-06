@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { downloadCSV } from "@/lib/export";
 import { formatCurrency } from "@/lib/utils";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expense-categories";
 
 interface Invoice {
   id: string;
@@ -24,10 +25,7 @@ interface Expense {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  ARAC: 'Araç Kirası', ARAC_GENEL: 'Araç Genel', AKARYAKIT: 'Akaryakıt',
-  YEMEK: 'Yemek', SEYAHAT: 'Seyahat', YAZILIM: 'Yazılım', OFIS: 'Ofis',
-  KIRA: 'Kira', MUHASEBE: 'Muhasebe', DEMIRBAS: 'Demirbaş',
-  SIGORTA: 'Sigorta', VERGI: 'Vergi', GENEL: 'Genel',
+  ...EXPENSE_CATEGORY_LABELS,
 };
 
 type DateRange = { start: string; end: string };
