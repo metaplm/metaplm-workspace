@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Plus, Receipt, X, Pencil, Trash2, Layers, Sparkles, ChevronLeft, AlertTriangle, Search } from "lucide-react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
+import { EXPENSE_CATEGORIES } from "@/lib/expense-categories";
 
 interface Expense {
   id: string;
@@ -31,21 +32,7 @@ interface Stats {
   availableMonths: string[];
 }
 
-const CATEGORIES = [
-  { value: "ARAC", label: "Araç Kirası" },
-  { value: "ARAC_GENEL", label: "Araç Genel" },
-  { value: "AKARYAKIT", label: "Akaryakıt" },
-  { value: "YEMEK", label: "Yemek" },
-  { value: "SEYAHAT", label: "Seyahat" },
-  { value: "YAZILIM", label: "Yazılım" },
-  { value: "OFIS", label: "Ofis" },
-  { value: "KIRA", label: "Kira" },
-  { value: "MUHASEBE", label: "Muhasebe" },
-  { value: "DEMIRBAS", label: "Demirbaş" },
-  { value: "SIGORTA", label: "Sigorta" },
-  { value: "VERGI", label: "Vergi" },
-  { value: "GENEL", label: "Genel" },
-];
+const CATEGORIES = EXPENSE_CATEGORIES;
 const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: new Date().toISOString().slice(0, 10), dealId: "" };
 const PIE_COLORS = ["#6366f1", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#60a5fa", "#f472b6", "#fb923c", "#4ade80", "#38bdf8", "#e879f9", "#facc15", "#94a3b8"];
 const PAGE_SIZE = 20;
@@ -83,6 +70,7 @@ export default function ExpensesPage() {
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkError, setBulkError] = useState("");
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [dupPool, setDupPool] = useState<Expense[]>([]);
   const [srFind, setSrFind] = useState("");
   const [srReplace, setSrReplace] = useState("");
   const [bulkCat, setBulkCat] = useState("");
@@ -109,18 +97,28 @@ export default function ExpensesPage() {
     fetch(`/api/expenses/stats${p}`).then(r => r.json()).then(setStats).finally(() => setStatsLoading(false));
   };
 
-  // Load stats + deals + current month's records on mount
+  // Load deals on mount (stats + table are loaded by the filter effect below)
   useEffect(() => {
-    loadStats(filterMonth);
     fetch("/api/deals").then(r => r.json()).then(setDeals);
-    loadTable(true, filterMonth, search, filterCats);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Reload when month or category filter changes immediately
+  // Reload when month or category filter changes (also runs on mount)
   useEffect(() => {
     loadStats(filterMonth);
     loadTable(true, filterMonth, search, filterCats);
   }, [filterMonth, filterCats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // If the default month (current month) has no records, fall back to the
+  // most recent month with data — otherwise an invisible filter leaves the
+  // table empty while the select appears to show "Tüm aylar".
+  const monthInitRef = useRef(false);
+  useEffect(() => {
+    if (!stats || monthInitRef.current) return;
+    monthInitRef.current = true;
+    if (filterMonth && !stats.availableMonths.includes(filterMonth)) {
+      setFilterMonth(stats.availableMonths[0] ?? "");
+    }
+  }, [stats]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce search filter reload
   useEffect(() => {
@@ -206,6 +204,12 @@ export default function ExpensesPage() {
       const data = await res.json();
       if (!res.ok) { setBulkError(data.error || "Analiz başarısız oldu."); return; }
       if (!data.expenses?.length) { setBulkError("Metinden hiç harcama bulunamadı. Farklı bir format deneyin."); return; }
+      // Mükerrer kontrolü için tüm mevcut kayıtları çek (tablodaki sayfa
+      // filtreli/kesik olduğundan ona güvenilmez)
+      try {
+        const all = await fetch("/api/expenses").then(r => r.json());
+        setDupPool(Array.isArray(all) ? all : all.expenses ?? []);
+      } catch { setDupPool([]); }
       setBulkItems(data.expenses);
     } catch {
       setBulkError("Sunucu hatası oluştu.");
@@ -220,11 +224,14 @@ export default function ExpensesPage() {
     setBulkItems(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Aynı tutar + para birimi, ±3 gün içinde: banka tahsilat tarihi kart
+  // işlem tarihinden birkaç gün kayabildiği için tarih birebir eşleşmez
+  const DUP_WINDOW_DAYS = 3;
   const isDuplicate = (item: ParsedExpense) =>
-    (expenses || []).some(e =>
-      e.date.slice(0, 10) === item.date &&
+    dupPool.some(e =>
       Math.abs(e.amount - Number(item.amount)) < 0.01 &&
-      e.currency === item.currency
+      e.currency === item.currency &&
+      Math.abs(new Date(e.date.slice(0, 10)).getTime() - new Date(item.date).getTime()) <= DUP_WINDOW_DAYS * 86400000
     );
 
   const removeAllDuplicates = () => {
@@ -445,6 +452,11 @@ export default function ExpensesPage() {
               style={{ width: 140 }}
             >
               <option value="">Tüm aylar</option>
+              {filterMonth && !availableMonths.includes(filterMonth) && (
+                <option value={filterMonth}>
+                  {new Date(Number(filterMonth.split("-")[0]), Number(filterMonth.split("-")[1]) - 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
+                </option>
+              )}
               {availableMonths.map(m => {
                 const [y, mo] = m.split("-");
                 const label = new Date(Number(y), Number(mo) - 1).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
@@ -681,7 +693,7 @@ export default function ExpensesPage() {
                     <div className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.25)" }}>
                       <div className="flex items-center gap-2" style={{ color: "var(--color-warning-yellow)" }}>
                         <AlertTriangle size={14} />
-                        <span><strong>{duplicateCount}</strong> kayıt mevcut harcamalarla aynı tarih+tutar+para birimine sahip</span>
+                        <span><strong>{duplicateCount}</strong> kayıt mevcut harcamalarla eşleşiyor (±3 gün içinde aynı tutar + para birimi)</span>
                       </div>
                       <button onClick={removeAllDuplicates} className="text-xs px-2 py-1 rounded font-medium" style={{ background: "rgba(245,158,11,0.2)", color: "var(--color-warning-yellow)" }}>
                         Tümünü Çıkar
