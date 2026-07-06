@@ -4,23 +4,37 @@ import { FileText, RefreshCw, AlertCircle, ExternalLink, Send, Download } from "
 import { formatCurrency } from "@/lib/utils";
 
 interface KolayBiInvoice {
-  id: number;
-  currency: string;
+  document_id: number;
+  uuid: string;
+  no: string;
+  status: string;
+  scenario: string;
+  type: string;
+  direction: string;
+  exchange_grand_total: number;
+  exchange_grand_currency: string;
+  grand_total: number;
+  grand_currency: string;
   issue_date: string;
-  due_date?: string;
-  e_document_status: string;
-  commercial_doc_type: { description: string; group: string };
-  commercial_doc_status: { description: string };
-  associate: { full_name: string };
-  total: { grand_total: number; total_vat: number; subtotal: number };
+  cancelled_at?: string;
+  party_name?: string;
 }
 
-const E_DOC_LABEL: Record<string, { label: string; color: string }> = {
-  not_sent: { label: "Gönderilmedi", color: "#94a3b8" },
-  waiting:  { label: "Bekliyor",     color: "#fbbf24" },
-  sent:     { label: "Gönderildi",   color: "#34d399" },
-  accepted: { label: "Kabul Edildi", color: "#34d399" },
-  rejected: { label: "Reddedildi",  color: "#f87171" },
+const STATUS_LABEL: Record<string, { label: string; color: string }> = {
+  sent_to_receiver: { label: "Alıcıya Ulaştı",  color: "#34d399" },
+  sent_to_gib:      { label: "GİB'e Gönderildi", color: "#34d399" },
+  processed_in_gib: { label: "GİB'de İşlendi",   color: "#34d399" },
+  approved:         { label: "Onaylandı",         color: "#34d399" },
+  rejected:         { label: "Reddedildi",        color: "#f87171" },
+  cancelled:        { label: "İptal Edildi",      color: "#f87171" },
+  processing_failed:{ label: "İşlem Hatası",      color: "#f87171" },
+  sending_failed:   { label: "Gönderim Hatası",   color: "#f87171" },
+  failed:           { label: "Hata",              color: "#f87171" },
+  in_process:       { label: "İşlemde",           color: "#fbbf24" },
+  waiting_gib:      { label: "GİB Bekliyor",      color: "#fbbf24" },
+  preparing:        { label: "Hazırlanıyor",      color: "#fbbf24" },
+  ready:            { label: "Hazır",             color: "#6366f1" },
+  not_sent:         { label: "Gönderilmedi",      color: "#94a3b8" },
 };
 
 interface Props {
@@ -52,8 +66,8 @@ export default function EFaturaList({ type }: Props) {
   useEffect(() => { load(); }, [type]);
 
   const invoices = all;
-  const totalAmount = invoices.reduce((s, i) => s + (i.total?.grand_total ?? 0), 0);
-  const notSentCount = invoices.filter(i => i.e_document_status === "not_sent").length;
+  const totalAmount = invoices.reduce((s, i) => s + (i.grand_total ?? 0), 0);
+  const errorCount = invoices.filter(i => ["not_sent", "processing_failed", "sending_failed", "failed", "rejected"].includes(i.status)).length;
 
   const Icon = type === "giden" ? Send : Download;
   const accentColor = type === "giden" ? "#6366f1" : "#0ea5e9";
@@ -67,9 +81,6 @@ export default function EFaturaList({ type }: Props) {
             <h1 className="text-xl font-semibold text-white">
               e-Fatura {type === "giden" ? "Giden" : "Gelen"}
             </h1>
-            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: `${accentColor}20`, color: accentColor }}>
-              Sandbox
-            </span>
           </div>
           <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>
             KolayBi · {type === "giden" ? "Satış faturaları" : "Alış faturaları"}
@@ -104,13 +115,13 @@ export default function EFaturaList({ type }: Props) {
             </div>
           </div>
           <div className="glass rounded-xl p-4 flex items-center gap-3">
-            <Icon size={16} style={{ color: notSentCount > 0 ? "#fbbf24" : "#34d399" }} />
+            <Icon size={16} style={{ color: errorCount > 0 ? "#f87171" : "#34d399" }} />
             <div>
               <div className="text-xs mb-0.5" style={{ color: "var(--muted)" }}>
-                {type === "giden" ? "Gönderilmemiş" : "İşlenmemiş"}
+                {type === "giden" ? "Hatalı/Reddedilen" : "Hatalı/Reddedilen"}
               </div>
-              <div className="text-xl font-semibold" style={{ color: notSentCount > 0 ? "#fbbf24" : "#34d399" }}>
-                {notSentCount}
+              <div className="text-xl font-semibold" style={{ color: errorCount > 0 ? "#f87171" : "#34d399" }}>
+                {errorCount}
               </div>
             </div>
           </div>
@@ -131,43 +142,44 @@ export default function EFaturaList({ type }: Props) {
             <div className="text-sm text-white mb-1">
               {type === "giden" ? "Giden fatura bulunamadı" : "Gelen fatura bulunamadı"}
             </div>
-            <div className="text-xs" style={{ color: "var(--muted)" }}>Sandbox ortamında henüz fatura yok</div>
+            <div className="text-xs" style={{ color: "var(--muted)" }}>Henüz e-fatura kaydı yok</div>
           </div>
         )}
 
         {!loading && invoices.map(inv => {
-          const docSt = E_DOC_LABEL[inv.e_document_status] ?? { label: inv.e_document_status, color: "#94a3b8" };
+          const st = STATUS_LABEL[inv.status] ?? { label: inv.status, color: "#94a3b8" };
+          const currency = (inv.grand_currency ?? "TRY").toUpperCase();
           return (
-            <div key={inv.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
+            <div key={inv.document_id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${accentColor}18` }}>
                 <FileText size={15} style={{ color: accentColor }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-sm font-semibold text-white">#{inv.id}</span>
+                  <span className="font-mono text-sm font-semibold text-white">{inv.no ?? `#${inv.document_id}`}</span>
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: `${accentColor}15`, color: accentColor }}>
-                    {inv.commercial_doc_type.description}
+                    {inv.scenario}
                   </span>
                 </div>
                 <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
-                  {inv.associate.full_name}
+                  {inv.party_name}
                   {inv.issue_date && ` · ${new Date(inv.issue_date).toLocaleDateString("tr-TR")}`}
-                  {inv.due_date && ` · Vade: ${new Date(inv.due_date).toLocaleDateString("tr-TR")}`}
+                  {inv.cancelled_at && <span style={{ color: "#f87171" }}> · İptal</span>}
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <div className="font-semibold font-mono text-sm text-white">
-                  {formatCurrency(inv.total?.grand_total ?? 0, inv.currency.toUpperCase())}
+                  {formatCurrency(inv.grand_total ?? 0, currency)}
                 </div>
-                {(inv.total?.total_vat ?? 0) > 0 && (
+                {inv.exchange_grand_currency && inv.exchange_grand_currency !== inv.grand_currency && (
                   <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
-                    KDV: {formatCurrency(inv.total.total_vat, inv.currency.toUpperCase())}
+                    {formatCurrency(inv.exchange_grand_total, inv.exchange_grand_currency.toUpperCase())}
                   </div>
                 )}
               </div>
               <div className="text-xs px-2 py-1 rounded-lg font-medium shrink-0"
-                style={{ background: `${docSt.color}20`, color: docSt.color }}>
-                {docSt.label}
+                style={{ background: `${st.color}20`, color: st.color }}>
+                {st.label}
               </div>
             </div>
           );
@@ -175,10 +187,10 @@ export default function EFaturaList({ type }: Props) {
       </div>
 
       <div className="text-center pt-2">
-        <a href="https://ofis-sandbox.kolaybi.com" target="_blank" rel="noopener noreferrer"
+        <a href="https://ofis.kolaybi.com" target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
           <ExternalLink size={12} />
-          KolayBi Sandbox Paneli
+          KolayBi Paneli
         </a>
       </div>
     </div>

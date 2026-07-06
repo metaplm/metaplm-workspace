@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const BASE = process.env.KOLAYBI_BASE_URL ?? "https://ofis-sandbox-api.kolaybi.com/kolaybi/v1";
 const CHANNEL = process.env.KOLAYBI_CHANNEL ?? "";
 const API_KEY = process.env.KOLAYBI_API_KEY ?? "";
+const COMPANY_ID = process.env.KOLAYBI_COMPANY_ID ?? "";
 
 // Simple in-memory token cache (resets on cold start)
 let cachedToken: { value: string; expiresAt: number } | null = null;
@@ -41,17 +42,35 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const resource = searchParams.get("resource") ?? "invoices";
-  const docType = searchParams.get("doc_type"); // sale_invoice | purchase_invoice
 
-  const allowed = ["invoices", "associates", "products"];
+  if (resource === "invoices") {
+    const direction = searchParams.get("doc_type") === "sale_invoice" ? "outbound" : "inbound";
+    const companyId = COMPANY_ID || searchParams.get("company_id");
+    if (!companyId) {
+      return NextResponse.json({ error: "KOLAYBI_COMPANY_ID not configured" }, { status: 503 });
+    }
+
+    const qs = new URLSearchParams({ company_id: companyId, direction });
+    const minDate = searchParams.get("min_issue_date");
+    const maxDate = searchParams.get("max_issue_date");
+    if (minDate) qs.set("min_issue_date", minDate);
+    if (maxDate) qs.set("max_issue_date", maxDate);
+
+    try {
+      const data = await kolaybiGet(`/e_document/invoices?${qs}`);
+      return NextResponse.json(data);
+    } catch (err: any) {
+      return NextResponse.json({ error: err.message }, { status: 502 });
+    }
+  }
+
+  const allowed = ["associates", "products", "companies"];
   if (!allowed.includes(resource)) {
     return NextResponse.json({ error: "Invalid resource" }, { status: 400 });
   }
 
-  const qs = docType ? `?type=${encodeURIComponent(docType)}` : "";
-
   try {
-    const data = await kolaybiGet(`/${resource}${qs}`);
+    const data = await kolaybiGet(`/${resource}`);
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 502 });
