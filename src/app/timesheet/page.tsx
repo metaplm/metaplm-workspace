@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, BarChart3, Pencil } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { useToast } from "@/components/ui/Toaster";
 import Link from "next/link";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameMonth, isToday, isSameDay } from "date-fns";
+import { tr } from "date-fns/locale";
 import { formatHours, getDayStatus, parseTimeInput } from "@/lib/utils";
 
 interface TimeEntry {
@@ -23,13 +25,14 @@ interface Company { id: string; name: string; }
 interface Project { id: string; name: string; companyId: string; defaultBillable: boolean; }
 
 const CATEGORIES = [
-  { value: "TASK", label: "Task" },
-  { value: "MEETING", label: "Meeting" },
-  { value: "TRAINING", label: "Training" },
-  { value: "SUPPORT", label: "Support" },
+  { value: "TASK", label: "Görev" },
+  { value: "MEETING", label: "Toplantı" },
+  { value: "TRAINING", label: "Eğitim" },
+  { value: "SUPPORT", label: "Destek" },
 ];
 
 export default function TimesheetPage() {
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -39,16 +42,42 @@ export default function TimesheetPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ value: "", unit: "hours", category: "TASK", billable: true, notes: "", companyId: "", projectId: "" });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TimeEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
     const y = currentDate.getFullYear();
     const m = currentDate.getMonth() + 1;
-    fetch(`/api/timeentries?year=${y}&month=${m}`).then(r => r.json()).then(setEntries);
-    fetch("/api/companies").then(r => r.json()).then(setCompanies);
-    fetch("/api/projects").then(r => r.json()).then(setProjects);
+    setLoadError(false);
+    fetch(`/api/timeentries?year=${y}&month=${m}`)
+      .then(r => r.json())
+      .then(data => setEntries(Array.isArray(data) ? data : []))
+      .catch(() => setLoadError(true));
+    fetch("/api/companies")
+      .then(r => r.json())
+      .then(data => setCompanies(Array.isArray(data) ? data : []))
+      .catch(() => setLoadError(true));
+    fetch("/api/projects")
+      .then(r => r.json())
+      .then(data => setProjects(Array.isArray(data) ? data : []))
+      .catch(() => setLoadError(true));
   }, [currentDate]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ESC ile modalları kapat
+  useEffect(() => {
+    if (!showModal && !deleteTarget) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (deleteTarget) setDeleteTarget(null);
+        else setShowModal(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showModal, deleteTarget]);
 
   const companyProjects = projects.filter(p => p.companyId === form.companyId);
 
@@ -101,28 +130,45 @@ export default function TimesheetPage() {
         projectId: form.projectId || null,
         date: format(selectedDay, "yyyy-MM-dd"),
       };
-      if (editingId) {
-        await fetch(`/api/timeentries/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/timeentries", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      const res = editingId
+        ? await fetch(`/api/timeentries/${editingId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/timeentries", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        toast("Kayıt kaydedilemedi", "error");
+        return;
       }
+      toast(editingId ? "Kayıt güncellendi" : "Zaman kaydedildi", "success");
       setShowModal(false);
       setEditingId(null);
       load();
+    } catch {
+      toast("Kayıt kaydedilemedi", "error");
     } finally { setSaving(false); }
   };
 
-  const deleteEntry = async (id: string) => {
-    await fetch(`/api/timeentries/${id}`, { method: "DELETE" });
-    load();
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/timeentries/${deleteTarget.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast("Kayıt silinemedi", "error");
+        return;
+      }
+      toast("Kayıt silindi", "success");
+      setDeleteTarget(null);
+      load();
+    } catch {
+      toast("Kayıt silinemedi", "error");
+    } finally { setDeleting(false); }
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -135,38 +181,46 @@ export default function TimesheetPage() {
   const billableTotal = entries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0);
 
   return (
-    <div className="p-8 space-y-6 animate-in">
+    <div className="p-8 pt-16 md:pt-8 space-y-6 animate-in">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Timesheet</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>Click any day to log time</p>
+          <h1 className="text-xl font-semibold text-white">Zaman Çizelgesi</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>Zaman kaydetmek için bir güne tıklayın</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(16,185,129,0.3)", border: "1px solid rgba(16,185,129,0.5)" }} /> <span className="text-xs">8h optimal</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(245,158,11,0.3)", border: "1px solid rgba(245,158,11,0.5)" }} /> <span className="text-xs">&lt;8h</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(249,115,22,0.3)", border: "1px solid rgba(249,115,22,0.5)" }} /> <span className="text-xs">overtime</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(16,185,129,0.3)", border: "1px solid rgba(16,185,129,0.5)" }} /> <span className="text-xs">8s ideal</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(245,158,11,0.3)", border: "1px solid rgba(245,158,11,0.5)" }} /> <span className="text-xs">&lt;8s</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm" style={{ background: "rgba(249,115,22,0.3)", border: "1px solid rgba(249,115,22,0.5)" }} /> <span className="text-xs">fazla mesai</span></div>
           </div>
         </div>
       </div>
 
+      {/* Load Error Banner */}
+      {loadError && (
+        <div className="glass rounded-xl p-4 flex items-center justify-between" style={{ border: "1px solid rgba(239,68,68,0.4)" }}>
+          <span className="text-sm" style={{ color: "#fca5a5" }}>Veriler yüklenemedi. Lütfen tekrar deneyin.</span>
+          <button onClick={load} className="btn-ghost text-xs">Yeniden Dene</button>
+        </div>
+      )}
+
       {/* Month Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Total Hours</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Saat</div>
           <div className="text-xl font-semibold font-mono text-white">{formatHours(monthTotal)}</div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Billable</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Faturalanabilir</div>
           <div className="text-xl font-semibold font-mono" style={{ color: "#6366f1" }}>{formatHours(billableTotal)}</div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Non-Billable</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Faturalanamaz</div>
           <div className="text-xl font-semibold font-mono text-white">{formatHours(monthTotal - billableTotal)}</div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Billable Rate</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Faturalanabilir Oran</div>
           <div className="text-xl font-semibold font-mono text-white">{monthTotal > 0 ? `${((billableTotal / monthTotal) * 100).toFixed(0)}%` : "0%"}</div>
         </div>
       </div>
@@ -175,13 +229,13 @@ export default function TimesheetPage() {
       <div className="glass rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
           <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white"><ChevronLeft size={16} /></button>
-          <h2 className="text-sm font-semibold text-white">{format(currentDate, "MMMM yyyy")}</h2>
+          <h2 className="text-sm font-semibold text-white">{format(currentDate, "MMMM yyyy", { locale: tr })}</h2>
           <button onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white"><ChevronRight size={16} /></button>
         </div>
 
         {/* Day Headers */}
         <div className="grid grid-cols-7">
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
+          {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(d => (
             <div key={d} className="text-center py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--muted)", borderBottom: "1px solid var(--border)" }}>{d}</div>
           ))}
         </div>
@@ -242,7 +296,7 @@ export default function TimesheetPage() {
                       </div>
                     );
                   })}
-                  {dayEntries.length > 2 && <div className="text-xs" style={{ color: "var(--muted)", fontSize: "10px" }}>+{dayEntries.length - 2} more</div>}
+                  {dayEntries.length > 2 && <div className="text-xs" style={{ color: "var(--muted)", fontSize: "10px" }}>+{dayEntries.length - 2} daha</div>}
                 </div>
 
                 {/* Add button on hover */}
@@ -260,22 +314,22 @@ export default function TimesheetPage() {
       {/* Reports redirect */}
       <div className="glass rounded-2xl p-5 flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-white">Detailed Reports moved</h2>
+          <h2 className="text-sm font-semibold text-white">Detaylı raporlar taşındı</h2>
           <p className="text-xs" style={{ color: "var(--muted)" }}>Raporlar artık ayrı bir sayfada.</p>
         </div>
         <Link href="/timesheet/reports" className="btn-primary flex items-center gap-2 text-xs">
-          <BarChart3 size={14} /> Go to Reports
+          <BarChart3 size={14} /> Raporlara Git
         </Link>
       </div>
 
       {/* Log Time Modal */}
       {showModal && selectedDay && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowModal(false)}>
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-base font-semibold text-white">{editingId ? "Edit Time Entry" : "Log Time"}</h2>
-                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{format(selectedDay, "EEEE, MMMM d, yyyy")}</div>
+                <h2 className="text-base font-semibold text-white">{editingId ? "Kaydı Düzenle" : "Zaman Kaydet"}</h2>
+                <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{format(selectedDay, "d MMMM yyyy, EEEE", { locale: tr })}</div>
               </div>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
@@ -283,7 +337,7 @@ export default function TimesheetPage() {
             {/* Existing entries for this day */}
             {getDayEntries(selectedDay).length > 0 && (
               <div className="mb-4 space-y-2">
-                <div className="text-xs font-medium" style={{ color: "var(--muted)" }}>Logged today:</div>
+                <div className="text-xs font-medium" style={{ color: "var(--muted)" }}>Bu güne kaydedilenler:</div>
                 {getDayEntries(selectedDay).map(e => (
                   <div key={e.id} className="flex items-center justify-between text-xs rounded-lg px-3 py-2" style={{ background: "rgba(255,255,255,0.05)" }}>
                     <span className="text-white">{e.company?.name || e.project?.name || e.category} — {formatHours(e.hours)}</span>
@@ -296,10 +350,10 @@ export default function TimesheetPage() {
                             : { background: "rgba(100,116,139,0.2)", color: "#94a3b8" }
                         }
                       >
-                        {e.billable ? "Billable" : "Non-billable"}
+                        {e.billable ? "Faturalanabilir" : "Faturalanamaz"}
                       </span>
                       <button onClick={() => openEdit(e)} className="hover:text-blue-400" style={{ color: "var(--muted)" }}><Pencil size={12} /></button>
-                      <button onClick={() => deleteEntry(e.id)} className="hover:text-red-400" style={{ color: "var(--muted)" }}><X size={12} /></button>
+                      <button onClick={() => setDeleteTarget(e)} className="hover:text-red-400" style={{ color: "var(--muted)" }}><X size={12} /></button>
                     </div>
                   </div>
                 ))}
@@ -309,62 +363,78 @@ export default function TimesheetPage() {
             <div className="space-y-3">
               {/* Time Input with unit toggle */}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Effort *</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Efor *</label>
                 <div className="flex gap-2">
                   <input type="number" step="0.25" min="0" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder="0" className="flex-1 text-sm" />
                   <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)" }}>
-                    {["hours", "days"].map(u => (
-                      <button key={u} onClick={() => setForm(f => ({ ...f, unit: u }))} className="px-3 py-2 text-xs font-medium transition-all" style={{
-                        background: form.unit === u ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.03)",
-                        color: form.unit === u ? "#a5b4fc" : "var(--muted)",
-                      }}>{u}</button>
+                    {[{ value: "hours", label: "saat" }, { value: "days", label: "gün" }].map(u => (
+                      <button key={u.value} onClick={() => setForm(f => ({ ...f, unit: u.value }))} className="px-3 py-2 text-xs font-medium transition-all" style={{
+                        background: form.unit === u.value ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.03)",
+                        color: form.unit === u.value ? "#a5b4fc" : "var(--muted)",
+                      }}>{u.label}</button>
                     ))}
                   </div>
                 </div>
                 {form.unit === "days" && form.value && (
-                  <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>= {parseFloat(form.value) * 8}h (1 day = 8 hours)</div>
+                  <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>= {parseFloat(form.value) * 8}s (1 gün = 8 saat)</div>
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Category *</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Kategori *</label>
                 <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="text-sm">
                   {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Customer (Company)</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Müşteri (Şirket)</label>
                 <select value={form.companyId} onChange={e => handleCompanyChange(e.target.value)} className="text-sm">
-                  <option value="">— Select Company —</option>
+                  <option value="">— Şirket Seçin —</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Link to Project</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Projeye Bağla</label>
                 <select value={form.projectId} onChange={e => handleProjectChange(e.target.value)} className="text-sm" disabled={!form.companyId}>
-                  <option value="">— {form.companyId ? (companyProjects.length > 0 ? "Select Project" : "No projects for this company") : "Select a company first"} —</option>
+                  <option value="">— {form.companyId ? (companyProjects.length > 0 ? "Proje Seçin" : "Bu şirkete ait proje yok") : "Önce şirket seçin"} —</option>
                   {companyProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
 
               <div className="flex items-center justify-between glass rounded-lg px-3 py-2.5">
-                <span className="text-sm text-white">Billable</span>
+                <span className="text-sm text-white">Faturalanabilir</span>
                 <button onClick={() => setForm(f => ({ ...f, billable: !f.billable }))} className="relative w-10 h-5 rounded-full transition-colors" style={{ background: form.billable ? "#6366f1" : "rgba(255,255,255,0.1)" }}>
                   <span className="absolute top-0.5 transition-all w-4 h-4 rounded-full bg-white" style={{ left: form.billable ? "calc(100% - 18px)" : "2px" }} />
                 </button>
               </div>
 
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Notes</label>
-                <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="text-sm resize-none" placeholder="What did you work on?" />
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Notlar</label>
+                <textarea rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="text-sm resize-none" placeholder="Ne üzerinde çalıştınız?" />
               </div>
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.value || !form.category}>{saving ? "Saving..." : (editingId ? "Update" : "Log Time")}</button>
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>İptal</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.value || !form.category}>{saving ? "Kaydediliyor..." : (editingId ? "Güncelle" : "Zaman Kaydet")}</button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>)}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (<ModalPortal>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setDeleteTarget(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in" onClick={e => e.stopPropagation()}>
+            <h2 className="text-base font-semibold text-white mb-2">Kaydı Sil</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>
+              <span className="text-white">{deleteTarget.company?.name || deleteTarget.project?.name || deleteTarget.category} — {formatHours(deleteTarget.hours)}</span> kaydı silinecek. Bu işlem geri alınamaz.
+            </p>
+            <div className="flex gap-3">
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setDeleteTarget(null)} disabled={deleting}>İptal</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={confirmDelete} disabled={deleting}>{deleting ? "Siliniyor..." : "Sil"}</button>
             </div>
           </div>
         </div>

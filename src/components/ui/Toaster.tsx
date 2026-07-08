@@ -45,15 +45,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cn(
-              'animate-fade-in flex items-center gap-3 px-4 py-3 rounded-lg border shadow-xl',
-              'bg-ink-900 border-ink-700 text-sm text-ink-200 max-w-sm'
+              'glass animate-in flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl',
+              'text-sm max-w-sm'
             )}
+            style={{ color: 'var(--text)' }}
           >
             {icons[t.type]}
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => setToasts(p => p.filter(x => x.id !== t.id))}
-              className="text-ink-500 hover:text-ink-300"
+              className="hover:opacity-70"
+              style={{ color: 'var(--muted)' }}
+              aria-label="Kapat"
             >
               <X size={13} />
             </button>

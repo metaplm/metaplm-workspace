@@ -26,12 +26,12 @@ export default function LoginPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.error || "Giriş başarısız");
       }
 
       window.location.href = "/";
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      setError(err.message || "Giriş başarısız");
     } finally {
       setLoading(false);
     }
@@ -43,29 +43,33 @@ export default function LoginPage() {
         <div className="flex flex-col items-center gap-4 mb-8">
           <Image src="/metaplm_logo_2.png" alt="MetaPLM" width={64} height={64} className="rounded-lg" />
           <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>MetaPLM Workspace</h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>Sign in to continue</p>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>Devam etmek için giriş yapın</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Email</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>E-posta</label>
             <input
-              type="text"
+              type="email"
+              required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder="E-posta adresinizi girin"
               className="text-sm"
               disabled={loading}
             />
           </div>
 
           <div>
-            <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Password</label>
+            <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Şifre</label>
             <input
               type="password"
+              required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="Şifrenizi girin"
               className="text-sm"
               disabled={loading}
             />
@@ -82,7 +86,7 @@ export default function LoginPage() {
             className="btn-primary w-full"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
           </button>
         </form>
       </div>

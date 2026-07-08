@@ -409,6 +409,7 @@ export default function ActivitiesPage() {
   const [saving, setSaving] = useState(false);
   const [convertTarget, setConvertTarget] = useState<Activity | null>(null);
   const [convertForm, setConvertForm] = useState({ title: "", amount: "", currency: "TRY" });
+  const [converting, setConverting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
@@ -438,6 +439,19 @@ export default function ActivitiesPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Close modals with ESC (delete > convert > edit priority)
+  useEffect(() => {
+    if (!showModal && !convertTarget && !showDeleteConfirm) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showDeleteConfirm) setShowDeleteConfirm(null);
+      else if (convertTarget) setConvertTarget(null);
+      else setShowModal(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showModal, convertTarget, showDeleteConfirm]);
 
   const allActivitiesFlat = useMemo(() => {
     const flat: Activity[] = [];
@@ -679,7 +693,7 @@ export default function ActivitiesPage() {
     setActionBusyId(a.id);
     try {
       // PUT resets omitted relational fields, so send the full record back
-      await fetch(`/api/activities/${a.id}`, {
+      const res = await fetch(`/api/activities/${a.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -694,7 +708,11 @@ export default function ActivitiesPage() {
           dealId: a.deal?.id || null,
         }),
       });
+      if (!res.ok) { toast("Aksiyon güncellenemedi", "error"); return; }
+      toast("Aksiyon güncellendi", "success");
       load();
+    } catch {
+      toast("Bağlantı hatası, tekrar deneyin", "error");
     } finally {
       setActionBusyId(null);
     }
@@ -724,7 +742,10 @@ export default function ActivitiesPage() {
         }),
       });
       const data = await res.json();
-      if (data.error) return;
+      if (data.error) {
+        toast(typeof data.error === "string" ? data.error : "Metin analiz edilemedi", "error");
+        return;
+      }
       const filled: string[] = [];
       setForm(f => {
         const next = { ...f };
@@ -840,18 +861,27 @@ export default function ActivitiesPage() {
   };
 
   const handleConvert = async () => {
-    if (!convertTarget) return;
-    await fetch(`/api/activities/${convertTarget.id}/convert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: convertForm.title,
-        amount: convertForm.amount ? Number(convertForm.amount) : undefined,
-        currency: convertForm.currency,
-      }),
-    });
-    setConvertTarget(null);
-    load();
+    if (!convertTarget || converting) return;
+    setConverting(true);
+    try {
+      const res = await fetch(`/api/activities/${convertTarget.id}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: convertForm.title,
+          amount: convertForm.amount ? Number(convertForm.amount) : undefined,
+          currency: convertForm.currency,
+        }),
+      });
+      if (!res.ok) { toast("Deal oluşturulamadı, tekrar deneyin", "error"); return; }
+      toast("Deal oluşturuldu", "success");
+      setConvertTarget(null);
+      load();
+    } catch {
+      toast("Bağlantı hatası, tekrar deneyin", "error");
+    } finally {
+      setConverting(false);
+    }
   };
 
   const hasActiveFilters = filterType !== "ALL" || filterCompanyId || filterContactId || searchQuery.trim();
@@ -925,7 +955,7 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Aktivite</div>
           <div className="text-2xl font-semibold text-white">{allActivitiesFlat.length}</div>
@@ -946,9 +976,9 @@ export default function ActivitiesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* ===== Main column: composer + filters + feed ===== */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
 
           {/* Quick composer */}
           <div className="glass rounded-xl p-4 space-y-3">
@@ -1381,8 +1411,8 @@ export default function ActivitiesPage() {
       </ModalPortal>)}
 
       {showModal && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowModal(false)}>
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-white">
                 {editingId ? "Aktivite Düzenle" : form.parentId ? "Devam Aktivitesi Ekle" : "Yeni Aktivite"}
@@ -1453,7 +1483,7 @@ export default function ActivitiesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Activity Date</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Aktivite Tarihi</label>
                 <input
                   type="date"
                   value={form.createdAt}
@@ -1653,8 +1683,8 @@ export default function ActivitiesPage() {
       </ModalPortal>)}
 
       {convertTarget && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-sm p-6 space-y-3 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setConvertTarget(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 space-y-3 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-white">Pipeline Fırsatı Oluştur</h2>
             <p className="text-xs" style={{ color: "var(--muted)" }}>
               Bu aktiviteyi yeni bir deal olarak kaydetmek üzeresiniz. Tutar ve başlığı onaylayın.
@@ -1679,17 +1709,25 @@ export default function ActivitiesPage() {
             </div>
             <div className="flex gap-3 pt-2">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setConvertTarget(null)}>İptal</button>
-              <button className="btn-primary flex-1 text-sm" onClick={handleConvert}>Deal Oluştur</button>
+              <button className="btn-primary flex-1 text-sm" disabled={converting} onClick={handleConvert}>{converting ? "Oluşturuluyor..." : "Deal Oluştur"}</button>
             </div>
           </div>
         </div>
       </ModalPortal>)}
 
       {showDeleteConfirm && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowDeleteConfirm(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-white mb-2">Aktiviteyi Sil?</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz.</p>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>
+              {(() => {
+                const target = allActivitiesFlat.find(a => a.id === showDeleteConfirm);
+                if (!target) return "";
+                const typeLabel = TYPE_OPTIONS.find(t => t.value === target.type)?.label ?? target.type;
+                return `"${typeLabel}${target.company ? ` · ${target.company.name}` : ""}" aktivitesi silinecek. `;
+              })()}
+              Bu işlem geri alınamaz.
+            </p>
             <div className="flex gap-3">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Vazgeç</button>
               <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteActivity(showDeleteConfirm)}>Sil</button>

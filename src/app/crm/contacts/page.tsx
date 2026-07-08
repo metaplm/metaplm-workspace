@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2, Sparkles, AlertCircle, LayoutGrid, List } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -46,6 +47,18 @@ export default function ContactsPage() {
     ]).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  // Close modals with ESC
+  useEffect(() => {
+    if (!showModal && !showDeleteConfirm) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showDeleteConfirm) setShowDeleteConfirm(null);
+      else setShowModal(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showModal, showDeleteConfirm]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -205,7 +218,7 @@ export default function ContactsPage() {
                   {c.company && (
                     <div className="flex items-center gap-1 mt-1 truncate">
                       <Building2 size={10} style={{ color: "var(--muted)" }} />
-                      <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
+                      <Link href={`/crm/companies?open=${c.company.id}`} onClick={e => e.stopPropagation()} className="text-xs hover:underline truncate" style={{ color: "var(--muted)" }}>{c.company.name}</Link>
                     </div>
                   )}
                 </div>
@@ -224,6 +237,7 @@ export default function ContactsPage() {
         </div>
       ) : (
         <div className="glass rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -255,7 +269,7 @@ export default function ContactsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {c.company
-                      ? <span className="text-xs" style={{ color: "var(--muted)" }}>{c.company.name}</span>
+                      ? <Link href={`/crm/companies?open=${c.company.id}`} onClick={e => e.stopPropagation()} className="text-xs hover:underline" style={{ color: "var(--muted)" }}>{c.company.name}</Link>
                       : <span style={{ color: "var(--muted)", opacity: 0.4 }}>—</span>}
                   </td>
                   <td className="px-4 py-3">
@@ -279,6 +293,7 @@ export default function ContactsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -303,8 +318,8 @@ export default function ContactsPage() {
       )}
 
       {showModal && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowModal(false)}>
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">{editingId ? "Kişi Düzenle" : "Kişi Ekle"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
@@ -413,10 +428,16 @@ export default function ContactsPage() {
       </ModalPortal>)}
 
       {showDeleteConfirm && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowDeleteConfirm(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-white mb-2">Kişi Silinsin mi?</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz.</p>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>
+              {(() => {
+                const target = contacts.find(c => c.id === showDeleteConfirm);
+                return target ? `"${target.firstName} ${target.lastName}" kişisi silinecek. ` : "";
+              })()}
+              Bu işlem geri alınamaz.
+            </p>
             <div className="flex gap-3">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Vazgeç</button>
               <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteContact(showDeleteConfirm)}>Sil</button>

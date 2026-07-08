@@ -28,11 +28,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   ...EXPENSE_CATEGORY_LABELS,
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  ALL: "Tümü", DRAFT: "Taslak", PENDING: "Bekliyor", PAID: "Ödendi", OVERDUE: "Gecikti", CANCELLED: "İptal",
+};
+
 type DateRange = { start: string; end: string };
 
 export default function FinanceReportsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [invoiceFilters, setInvoiceFilters] = useState({
     status: "ALL",
     company: "",
@@ -45,10 +51,28 @@ export default function FinanceReportsPage() {
     dates: defaultRange(),
   });
 
-  useEffect(() => {
-    fetch("/api/invoices").then(r => r.json()).then(setInvoices);
-    fetch("/api/expenses").then(r => r.json()).then(setExpenses);
-  }, []);
+  const loadData = () => {
+    setLoading(true);
+    setLoadError(false);
+    Promise.all([
+      fetch("/api/invoices").then(r => {
+        if (!r.ok) throw new Error("invoices failed");
+        return r.json();
+      }),
+      fetch("/api/expenses").then(r => {
+        if (!r.ok) throw new Error("expenses failed");
+        return r.json();
+      }),
+    ])
+      .then(([inv, exp]) => {
+        setInvoices(Array.isArray(inv) ? inv : inv?.invoices ?? []);
+        setExpenses(Array.isArray(exp) ? exp : exp?.expenses ?? []);
+      })
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadData(); }, []);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -75,13 +99,13 @@ export default function FinanceReportsPage() {
       `finance-invoices-${invoiceFilters.dates.start}-${invoiceFilters.dates.end}`,
       ["Issued", "Number", "Company", "Amount", "Currency", "Status", "Due"],
       filteredInvoices.map(inv => [
-        new Date(inv.issuedDate).toLocaleDateString(),
+        new Date(inv.issuedDate).toLocaleDateString("tr-TR"),
         inv.id,
         inv.deal?.company?.name || inv.deal?.title || "-",
         inv.amount,
         inv.currency,
         inv.status,
-        inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "-",
+        inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("tr-TR") : "-",
       ])
     );
   };
@@ -92,7 +116,7 @@ export default function FinanceReportsPage() {
       `finance-expenses-${expenseFilters.dates.start}-${expenseFilters.dates.end}`,
       ["Date", "Description", "Amount", "Currency", "Category", "Project"],
       filteredExpenses.map(exp => [
-        new Date(exp.date).toLocaleDateString(),
+        new Date(exp.date).toLocaleDateString("tr-TR"),
         exp.description || "-",
         exp.amount,
         exp.currency,
@@ -103,77 +127,96 @@ export default function FinanceReportsPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in">
+    <div className="p-4 md:p-8 space-y-6 animate-in pt-16 md:pt-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Finance Reports</h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>Filter invoices & expenses, export CSV</p>
+          <h1 className="text-xl font-semibold text-white">Finans Raporları</h1>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>Fatura ve giderleri filtreleyin, CSV indirin</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      {loadError && (
+        <div className="glass rounded-xl p-4 flex items-center justify-between gap-3" style={{ border: "1px solid rgba(239,68,68,0.3)" }}>
+          <span className="text-sm" style={{ color: "#f87171" }}>Veriler yüklenemedi. Lütfen tekrar deneyin.</span>
+          <button className="btn-ghost text-xs" onClick={loadData}>Tekrar Dene</button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[0, 1].map(i => (
+            <div key={i} className="space-y-4">
+              <div className="glass rounded-2xl p-5 animate-pulse" style={{ height: 180 }} />
+              <div className="glass rounded-2xl animate-pulse" style={{ height: 240 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !loadError && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           <div className="glass rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-white">Invoice Report</h3>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Filter billed revenue</p>
+                <h3 className="text-sm font-semibold text-white">Fatura Raporu</h3>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>Faturalanan geliri filtreleyin</p>
               </div>
-              <button className="btn-primary text-xs" onClick={exportInvoices} disabled={!filteredInvoices.length}>Export CSV</button>
+              <button className="btn-primary text-xs" onClick={exportInvoices} disabled={!filteredInvoices.length}>CSV İndir</button>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <label style={{ color: "var(--muted)" }}>From</label>
+                <label style={{ color: "var(--muted)" }}>Başlangıç</label>
                 <input type="date" value={invoiceFilters.dates.start} onChange={e => setInvoiceFilters(f => ({ ...f, dates: { ...f.dates, start: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>To</label>
+                <label style={{ color: "var(--muted)" }}>Bitiş</label>
                 <input type="date" value={invoiceFilters.dates.end} onChange={e => setInvoiceFilters(f => ({ ...f, dates: { ...f.dates, end: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Status</label>
+                <label style={{ color: "var(--muted)" }}>Durum</label>
                 <select value={invoiceFilters.status} onChange={e => setInvoiceFilters(f => ({ ...f, status: e.target.value }))}>
                   {["ALL", "DRAFT", "PENDING", "PAID", "OVERDUE", "CANCELLED"].map(status => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}>{STATUS_LABELS[status] || status}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Company</label>
-                <input type="text" placeholder="Search" value={invoiceFilters.company} onChange={e => setInvoiceFilters(f => ({ ...f, company: e.target.value }))} />
+                <label style={{ color: "var(--muted)" }}>Şirket</label>
+                <input type="text" placeholder="Ara" value={invoiceFilters.company} onChange={e => setInvoiceFilters(f => ({ ...f, company: e.target.value }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Min Amount</label>
+                <label style={{ color: "var(--muted)" }}>Min Tutar</label>
                 <input type="number" min={0} value={invoiceFilters.minAmount} onChange={e => setInvoiceFilters(f => ({ ...f, minAmount: e.target.value }))} />
               </div>
             </div>
           </div>
           <div className="glass rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-              <h4 className="text-sm font-semibold text-white">Invoices ({filteredInvoices.length})</h4>
+              <h4 className="text-sm font-semibold text-white">Faturalar ({filteredInvoices.length})</h4>
               <span className="text-xs" style={{ color: "var(--muted)" }}>{formatCurrency(filteredInvoices.reduce((s, i) => s + i.amount, 0), "TRY")}</span>
             </div>
             <div className="max-h-72 overflow-auto text-xs">
               <table className="w-full">
                 <thead style={{ background: "rgba(255,255,255,0.02)", color: "var(--muted)" }}>
                   <tr>
-                    <th className="text-left py-2 px-4">Issued</th>
-                    <th className="text-left py-2 px-4">Company</th>
-                    <th className="text-left py-2 px-4">Amount</th>
-                    <th className="text-left py-2 px-4">Status</th>
+                    <th className="text-left py-2 px-4">Kesim</th>
+                    <th className="text-left py-2 px-4">Şirket</th>
+                    <th className="text-left py-2 px-4">Tutar</th>
+                    <th className="text-left py-2 px-4">Durum</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredInvoices.map(inv => (
                     <tr key={inv.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td className="py-2 px-4 text-white">{new Date(inv.issuedDate).toLocaleDateString()}</td>
+                      <td className="py-2 px-4 text-white">{new Date(inv.issuedDate).toLocaleDateString("tr-TR")}</td>
                       <td className="py-2 px-4">{inv.deal?.company?.name || inv.deal?.title || "-"}</td>
                       <td className="py-2 px-4 font-mono text-white">{formatCurrency(inv.amount, inv.currency)}</td>
-                      <td className="py-2 px-4">{inv.status}</td>
+                      <td className="py-2 px-4">{STATUS_LABELS[inv.status] || inv.status}</td>
                     </tr>
                   ))}
                   {!filteredInvoices.length && (
-                    <tr><td colSpan={4} className="py-6 text-center" style={{ color: "var(--muted)" }}>No invoices for this filter.</td></tr>
+                    <tr><td colSpan={4} className="py-6 text-center" style={{ color: "var(--muted)" }}>Bu filtreye uyan fatura yok.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -230,7 +273,7 @@ export default function FinanceReportsPage() {
                 <tbody>
                   {filteredExpenses.map(exp => (
                     <tr key={exp.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td className="py-2 px-4 text-white">{new Date(exp.date).toLocaleDateString()}</td>
+                      <td className="py-2 px-4 text-white">{new Date(exp.date).toLocaleDateString("tr-TR")}</td>
                       <td className="py-2 px-4">{exp.description || "—"}</td>
                       <td className="py-2 px-4 font-mono text-white">-{formatCurrency(exp.amount, exp.currency)}</td>
                       <td className="py-2 px-4">{CATEGORY_LABELS[exp.category] || exp.category}</td>
@@ -245,6 +288,7 @@ export default function FinanceReportsPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -256,8 +300,9 @@ function defaultRange(): DateRange {
   return { start: formatISO(first), end: formatISO(last) };
 }
 
+// Local date components — toISOString() converts to UTC and can shift the day
 function formatISO(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function isWithinRange(date: string, range: DateRange) {

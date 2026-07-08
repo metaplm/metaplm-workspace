@@ -31,7 +31,7 @@ export async function GET() {
     }),
     prisma.activity.findMany({
       orderBy: { createdAt: "desc" },
-      include: { deal: true },
+      include: { deal: true, company: true },
     }),
   ]);
 
@@ -114,9 +114,17 @@ export async function GET() {
   const totalActivities = activityStats.length;
   const convertedActivities = activityStats.filter(a => a.dealId).length;
   const activityConversionRate = totalActivities ? (convertedActivities / totalActivities) * 100 : 0;
-  const upcomingNextActions = activityStats.filter(
-    a => a.nextActionDate && new Date(a.nextActionDate) >= now
-  ).length;
+  const upcomingActionItems = activityStats
+    .filter(a => a.nextActionDate && new Date(a.nextActionDate) >= now)
+    .sort((a, b) => new Date(a.nextActionDate!).getTime() - new Date(b.nextActionDate!).getTime());
+  const upcomingNextActions = upcomingActionItems.length;
+  const upcomingActions = upcomingActionItems.slice(0, 6).map(a => ({
+    id: a.id,
+    type: a.type,
+    notes: a.notes ?? null,
+    nextActionDate: a.nextActionDate,
+    companyName: (a as any).company?.name ?? null,
+  }));
 
   return NextResponse.json({
     // Pipeline
@@ -148,6 +156,7 @@ export async function GET() {
     
     // Activities
     recentActivities: activities,
+    upcomingActions,
     activityStats: {
       total: totalActivities,
       converted: convertedActivities,

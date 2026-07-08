@@ -102,7 +102,7 @@ export default function EFaturaPage() {
 
       {/* Stats */}
       {!error && !loading && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="glass rounded-xl p-4">
             <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Fatura</div>
             <div className="text-2xl font-semibold text-white">{invoices.length}</div>

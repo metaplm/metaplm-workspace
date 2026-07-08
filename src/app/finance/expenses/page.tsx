@@ -5,6 +5,7 @@ import { LoadingRows } from "@/components/ui/LoadingRows";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { formatCurrency } from "@/lib/utils";
 import { EXPENSE_CATEGORIES } from "@/lib/expense-categories";
+import { useToast } from "@/components/ui/Toaster";
 
 interface Expense {
   id: string;
@@ -33,7 +34,10 @@ interface Stats {
 }
 
 const CATEGORIES = EXPENSE_CATEGORIES;
-const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: new Date().toISOString().slice(0, 10), dealId: "" };
+// Local (not UTC) date — toISOString shifts the day around midnight in TR timezone
+const localDateISO = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const EMPTY = { description: "", amount: "", currency: "TRY", category: "GENEL", date: localDateISO(), dealId: "" };
 const PIE_COLORS = ["#6366f1", "#f87171", "#fbbf24", "#34d399", "#a78bfa", "#60a5fa", "#f472b6", "#fb923c", "#4ade80", "#38bdf8", "#e879f9", "#facc15", "#94a3b8"];
 const PAGE_SIZE = 20;
 
@@ -44,8 +48,11 @@ export default function ExpensesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [total, setTotal] = useState(0);
+  const { toast } = useToast();
   const [lastBulkDate, setLastBulkDate] = useState<string | null>(() =>
     typeof window !== "undefined" ? localStorage.getItem("lastBulkImport") : null
   );
@@ -60,7 +67,7 @@ export default function ExpensesPage() {
   // Filter state — default to current month
   const [search, setSearch] = useState("");
   const [filterCats, setFilterCats] = useState<string[]>([]);
-  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [filterMonth, setFilterMonth] = useState(() => localDateISO().slice(0, 7));
 
   // Bulk import state
   const [showBulk, setShowBulk] = useState(false);
@@ -129,32 +136,56 @@ export default function ExpensesPage() {
   }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = async () => {
+    if (saving) return;
+    const amt = parseFloat(form.amount);
+    if (!(amt > 0)) {
+      setFormError("Tutar 0'dan büyük olmalıdır.");
+      return;
+    }
+    setFormError("");
     setSaving(true);
-    const data = { ...form, amount: parseFloat(form.amount) || 0 };
+    const data = { ...form, amount: amt };
     if (!data.dealId) delete (data as any).dealId;
     try {
-      if (editingId) {
-        await fetch(`/api/expenses/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      } else {
-        await fetch("/api/expenses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      const res = editingId
+        ? await fetch(`/api/expenses/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+        : await fetch("/api/expenses", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (!res.ok) {
+        toast("Harcama kaydedilemedi. Lütfen tekrar deneyin.", "error");
+        return;
       }
+      toast(editingId ? "Harcama güncellendi." : "Harcama kaydedildi.", "success");
       setShowModal(false);
       setForm({ ...EMPTY });
       setEditingId(null);
       // Refresh stats and table
       loadStats(filterMonth);
       loadTable(true, filterMonth, search, filterCats);
+    } catch {
+      toast("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.", "error");
     } finally { setSaving(false); }
   };
 
   const deleteExpense = async (id: string) => {
-    await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-    setShowDeleteConfirm(null);
-    loadStats(filterMonth);
-    loadTable(true, filterMonth, search, filterCats);
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast("Harcama silinemedi. Lütfen tekrar deneyin.", "error");
+        return;
+      }
+      toast("Harcama silindi.", "success");
+      setShowDeleteConfirm(null);
+      loadStats(filterMonth);
+      loadTable(true, filterMonth, search, filterCats);
+    } catch {
+      toast("Sunucuya ulaşılamadı. Lütfen tekrar deneyin.", "error");
+    } finally { setDeleting(false); }
   };
 
   const openEdit = (expense: Expense) => {
+    setFormError("");
     setForm({
       description: expense.description || "",
       amount: String(expense.amount),
@@ -168,6 +199,7 @@ export default function ExpensesPage() {
   };
 
   const openAdd = () => {
+    setFormError("");
     setForm({ ...EMPTY });
     setEditingId(null);
     setShowModal(true);
@@ -282,25 +314,53 @@ export default function ExpensesPage() {
   };
 
   const saveBulk = async () => {
-    if (!bulkItems.length) return;
+    if (!bulkItems.length || bulkSaving) return;
     setBulkSaving(true);
     try {
-      for (const item of bulkItems) {
-        await fetch("/api/expenses", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...item, amount: Number(item.amount) }),
-        });
+      const results = await Promise.allSettled(
+        bulkItems.map(item =>
+          fetch("/api/expenses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...item, amount: Number(item.amount) }),
+          }).then(res => {
+            if (!res.ok) throw new Error("save failed");
+          })
+        )
+      );
+      const failedItems = bulkItems.filter((_, i) => results[i].status === "rejected");
+      const savedCount = bulkItems.length - failedItems.length;
+      if (savedCount > 0) {
+        const now = new Date().toISOString();
+        localStorage.setItem("lastBulkImport", now);
+        setLastBulkDate(now);
       }
-      const now = new Date().toISOString();
-      localStorage.setItem("lastBulkImport", now);
-      setLastBulkDate(now);
-      closeBulk();
+      if (failedItems.length === 0) {
+        toast(`${savedCount} harcama kaydedildi.`, "success");
+        closeBulk();
+      } else {
+        toast(`${savedCount} kaydedildi, ${failedItems.length} başarısız. Başarısız kayıtlar listede kaldı.`, "error");
+        setBulkItems(failedItems);
+        setSelectedRows(new Set());
+      }
       // Refresh stats and table
       loadStats(filterMonth);
       loadTable(true, filterMonth, search, filterCats);
     } finally { setBulkSaving(false); }
   };
+
+  // Close modals with ESC (bulk modal stays open while there are parsed-but-unsaved rows)
+  useEffect(() => {
+    if (!showModal && !showDeleteConfirm && !showBulk) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setShowModal(false);
+      setShowDeleteConfirm(null);
+      if (showBulk && bulkItems.length === 0) closeBulk();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showModal, showDeleteConfirm, showBulk, bulkItems.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleCat = (cat: string) => {
     setFilterCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
@@ -465,7 +525,7 @@ export default function ExpensesPage() {
             </select>
             {hasFilters && (
               <button
-                onClick={() => { setSearch(""); setFilterCats([]); setFilterMonth(""); }}
+                onClick={() => { setSearch(""); setFilterCats([]); setFilterMonth(localDateISO().slice(0, 7)); }}
                 className="text-xs px-3 rounded-lg shrink-0"
                 style={{ background: "rgba(239,68,68,0.12)", color: "var(--color-expense)" }}
               >
@@ -511,6 +571,7 @@ export default function ExpensesPage() {
               </div>
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -550,7 +611,7 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="px-2 py-2.5">
-                      <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => openEdit(exp)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}>
                           <Pencil size={13} />
                         </button>
@@ -563,6 +624,7 @@ export default function ExpensesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           {expenses.length < total && (
             <button
@@ -580,8 +642,8 @@ export default function ExpensesPage() {
 
       {/* Log / Edit Expense Modal */}
       {showModal && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowModal(false)}>
+          <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">{editingId ? "Harcamayı Düzenle" : "Harcama Ekle"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
@@ -594,7 +656,8 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Tutar *</label>
-                  <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0" className="text-sm" />
+                  <input type="number" value={form.amount} onChange={e => { setForm(f => ({ ...f, amount: e.target.value })); setFormError(""); }} placeholder="0" className="text-sm" />
+                  {formError && <p className="text-xs mt-1" style={{ color: "#f87171" }}>{formError}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Para Birimi</label>
@@ -635,8 +698,9 @@ export default function ExpensesPage() {
 
       {/* Bulk Import Modal */}
       {showBulk && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-3xl p-6 animate-in max-h-[90vh] overflow-y-auto">
+        {/* Backdrop click closes only if there are no parsed-but-unsaved rows */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => { if (bulkItems.length === 0) closeBulk(); }}>
+          <div className="glass rounded-2xl w-full max-w-3xl p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-base font-semibold text-white flex items-center gap-2">
@@ -843,13 +907,13 @@ export default function ExpensesPage() {
       </ModalPortal>)}
 
       {showDeleteConfirm && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowDeleteConfirm(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-white mb-2">Harcamayı sil?</h2>
             <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz.</p>
             <div className="flex gap-3">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>İptal</button>
-              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteExpense(showDeleteConfirm!)}>Sil</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteExpense(showDeleteConfirm!)} disabled={deleting}>{deleting ? "Siliniyor..." : "Sil"}</button>
             </div>
           </div>
         </div>

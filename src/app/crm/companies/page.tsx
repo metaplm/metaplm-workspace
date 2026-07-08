@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2, Pencil, Trash2, Users, GitBranch, FileText, Clock, Briefcase, ChevronRight, Calendar, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2, Pencil, Trash2, Users, GitBranch, FileText, Clock, Briefcase, ChevronRight, ChevronDown, Calendar, LayoutGrid, List } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { STAGE_LABELS, STAGE_COLORS, INVOICE_STATUS_COLORS, TYPE_LABELS, TYPE_COLORS, STATUS_LABELS, STATUS_COLORS, formatMoney } from "@/components/crm/constants";
 import { QuickActivityModal } from "@/components/crm/QuickActivityModal";
@@ -64,6 +64,7 @@ function isStale(company: Pick<Company, "lastActivityAt" | "status">): boolean {
 type Tab = "activities" | "contacts" | "deals" | "projects" | "timesheet";
 
 function CompanyDrawer({ companyId, onClose, onEdit, onChanged }: { companyId: string; onClose: () => void; onEdit: () => void; onChanged?: () => void }) {
+  const { toast } = useToast();
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activities");
@@ -76,9 +77,16 @@ function CompanyDrawer({ companyId, onClose, onEdit, onChanged }: { companyId: s
   useEffect(load, [companyId]);
 
   const changeStatus = async (status: string) => {
+    const prevStatus = detail?.status;
     setDetail(d => d ? { ...d, status } : d);
-    await fetch(`/api/companies/${companyId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
-    onChanged?.();
+    try {
+      const res = await fetch(`/api/companies/${companyId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+      if (!res.ok) throw new Error();
+      onChanged?.();
+    } catch {
+      setDetail(d => d && prevStatus ? { ...d, status: prevStatus } : d);
+      toast("Durum güncellenemedi", "error");
+    }
   };
 
   const totalHours = detail?.timeEntries.reduce((s, e) => s + e.hours, 0) ?? 0;
@@ -117,14 +125,18 @@ function CompanyDrawer({ companyId, onClose, onEdit, onChanged }: { companyId: s
                 <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>{detail?.name ?? "..."}</h2>
                 {detail?.nda && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#dc2626" }}>NDA</span>}
                 {detail && (
-                  <select
-                    value={detail.status}
-                    onChange={e => changeStatus(e.target.value)}
-                    className="text-[10px] px-1.5 py-0.5 rounded-full font-medium border-0"
-                    style={{ background: `${STATUS_COLORS[detail.status]}22`, color: STATUS_COLORS[detail.status] }}
-                  >
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
+                  <span className="relative inline-flex items-center">
+                    <select
+                      value={detail.status}
+                      onChange={e => changeStatus(e.target.value)}
+                      className="text-[10px] pl-1.5 pr-4 py-0.5 rounded-full font-medium border-0 appearance-none cursor-pointer"
+                      style={{ background: `${STATUS_COLORS[detail.status]}22`, color: STATUS_COLORS[detail.status], colorScheme: "dark" }}
+                      title="Durumu değiştir"
+                    >
+                      {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                    <ChevronDown size={9} className="absolute right-1 pointer-events-none" style={{ color: STATUS_COLORS[detail.status] }} />
+                  </span>
                 )}
               </div>
               <div className="flex items-center gap-3 mt-0.5">
@@ -369,6 +381,18 @@ export default function CompaniesPage() {
   };
   useEffect(() => { load(); }, []);
 
+  // Close modals with ESC
+  useEffect(() => {
+    if (!showModal && !showDeleteConfirm) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showDeleteConfirm) setShowDeleteConfirm(null);
+      else setShowModal(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [showModal, showDeleteConfirm]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const open = params.get("open");
@@ -381,12 +405,15 @@ export default function CompaniesPage() {
   }, []);
 
   const scrape = async () => {
-    if (!scrapeUrl) return;
+    if (!scrapeUrl.trim()) return;
     setScraping(true);
     try {
       const res = await fetch("/api/scrape", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: scrapeUrl }) });
+      if (!res.ok) { toast("Site bilgileri alınamadı, adresi kontrol edin", "error"); return; }
       const data = await res.json();
       setForm(f => ({ ...f, name: data.name || f.name, description: data.description || f.description, logoUrl: data.logoUrl || f.logoUrl, linkedinUrl: data.linkedinUrl || f.linkedinUrl, website: data.website || f.website }));
+    } catch {
+      toast("Bağlantı hatası, tekrar deneyin", "error");
     } finally { setScraping(false); }
   };
 
@@ -558,6 +585,7 @@ export default function CompaniesPage() {
         </div>
       ) : (
         <div className="glass rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -633,6 +661,7 @@ export default function CompaniesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -660,8 +689,8 @@ export default function CompaniesPage() {
       )}
 
       {showModal && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-lg p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowModal(false)}>
+          <div className="glass rounded-2xl w-full max-w-lg p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white">{editingId ? "Şirket Düzenle" : "Şirket Ekle"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
@@ -671,8 +700,8 @@ export default function CompaniesPage() {
               <div className="flex items-center gap-2 mb-2"><Sparkles size={13} style={{ color: "#a5b4fc" }} /><span className="text-xs font-semibold" style={{ color: "#a5b4fc" }}>Magic Company Add</span></div>
               <div className="flex gap-2">
                 <input placeholder="stripe.com" value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} onKeyDown={e => e.key === "Enter" && scrape()} className="flex-1 text-sm" />
-                <button className="btn-primary text-xs whitespace-nowrap flex items-center gap-1.5" onClick={scrape} disabled={scraping}>
-                  {scraping ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} {scraping ? "Fetching..." : "Fetch"}
+                <button className="btn-primary text-xs whitespace-nowrap flex items-center gap-1.5" onClick={scrape} disabled={scraping || !scrapeUrl.trim()}>
+                  {scraping ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} {scraping ? "Getiriliyor..." : "Getir"}
                 </button>
               </div>
             </div>
@@ -719,10 +748,16 @@ export default function CompaniesPage() {
       </ModalPortal>)}
 
       {showDeleteConfirm && (<ModalPortal>
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
-          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setShowDeleteConfirm(null)}>
+          <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-base font-semibold text-white mb-2">Şirket Silinsin mi?</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz. İlişkili kişiler, fırsatlar ve aktiviteler korunur fakat şirket bağlantısı kaldırılır.</p>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>
+              {(() => {
+                const target = companies.find(c => c.id === showDeleteConfirm);
+                return target ? `"${target.name}" şirketi silinecek. ` : "";
+              })()}
+              Bu işlem geri alınamaz. İlişkili kişiler, fırsatlar ve aktiviteler korunur fakat şirket bağlantısı kaldırılır.
+            </p>
             <div className="flex gap-3">
               <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>İptal</button>
               <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteCompany(showDeleteConfirm)}>Sil</button>

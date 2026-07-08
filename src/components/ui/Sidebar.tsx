@@ -8,22 +8,23 @@ import { useEffect, useState } from "react";
 const nav = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
   { label: "CRM", href: null, divider: true },
-  { label: "Companies", href: "/crm/companies", icon: Building2 },
-  { label: "Contacts", href: "/crm/contacts", icon: Users },
-  { label: "Activities", href: "/crm/activities", icon: Activity },
-  { label: "Deals", href: "/crm/deals", icon: TrendingUp },
-  { label: "Reports", href: "/crm/reports", icon: BarChart3 },
-  { label: "Timesheet", href: null, divider: true },
-  { label: "Projects", href: "/timesheet/projects", icon: FolderKanban },
-  { label: "Calendar", href: "/timesheet", icon: Clock },
-  { label: "Reports", href: "/timesheet/reports", icon: BarChart3 },
-  { label: "Finance", href: null, divider: true },
-  { label: "Invoices", href: "/finance/invoices", icon: FileText },
+  { label: "Genel Bakış", href: "/crm", icon: TrendingUp },
+  { label: "Şirketler", href: "/crm/companies", icon: Building2 },
+  { label: "Kişiler", href: "/crm/contacts", icon: Users },
+  { label: "Aktiviteler", href: "/crm/activities", icon: Activity },
+  { label: "Fırsatlar", href: "/crm/deals", icon: TrendingUp },
+  { label: "Raporlar", href: "/crm/reports", icon: BarChart3 },
+  { label: "Zaman Takibi", href: null, divider: true },
+  { label: "Projeler", href: "/timesheet/projects", icon: FolderKanban },
+  { label: "Takvim", href: "/timesheet", icon: Clock },
+  { label: "Raporlar", href: "/timesheet/reports", icon: BarChart3 },
+  { label: "Finans", href: null, divider: true },
+  { label: "Genel Bakış", href: "/finance", icon: DollarSign },
+  { label: "Faturalar", href: "/finance/invoices", icon: FileText },
   { label: "e-Fatura Giden", href: "/finance/efatura/giden", icon: Send },
   { label: "e-Fatura Gelen", href: "/finance/efatura/gelen", icon: Download },
-  { label: "Expenses", href: "/finance/expenses", icon: Receipt },
-  { label: "Dashboard", href: "/finance", icon: DollarSign },
-  { label: "Reports", href: "/finance/reports", icon: BarChart3 },
+  { label: "Giderler", href: "/finance/expenses", icon: Receipt },
+  { label: "Raporlar", href: "/finance/reports", icon: BarChart3 },
 ];
 
 export default function Sidebar() {
@@ -82,7 +83,13 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {nav.map((item, i) => {
+        {(() => {
+          // En uzun eşleşen href aktif sayılır; böylece /crm/companies'de hem /crm hem /crm/companies vurgulanmaz
+          const activeHref = nav
+            .filter(n => n.href)
+            .filter(n => path === n.href || (n.href !== "/" && path.startsWith(n.href + "/")))
+            .sort((a, b) => b.href!.length - a.href!.length)[0]?.href;
+          return nav.map((item, i) => {
           if (item.divider) {
             return (
               <div key={i} className="pt-4 pb-1 px-2">
@@ -91,11 +98,12 @@ export default function Sidebar() {
             );
           }
           const Icon = item.icon!;
-          const active = path === item.href;
+          const active = item.href === activeHref;
           return (
             <Link
               key={item.href}
               href={item.href!}
+              onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
                 active
                   ? "font-medium"
@@ -107,7 +115,8 @@ export default function Sidebar() {
               {item.label}
             </Link>
           );
-        })}
+          });
+        })()}
       </nav>
 
       {/* Footer */}
@@ -116,7 +125,7 @@ export default function Sidebar() {
           className="w-full flex items-center gap-2 justify-center btn-ghost text-xs"
           onClick={toggleTheme}
         >
-          <SunMoon size={14} /> {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          <SunMoon size={14} /> {theme === "dark" ? "Açık Tema" : "Koyu Tema"}
         </button>
         <button
           className="w-full flex items-center gap-2 justify-center btn-ghost text-xs"
@@ -125,7 +134,7 @@ export default function Sidebar() {
             window.location.href = "/login";
           }}
         >
-          Logout
+          Çıkış Yap
         </button>
         <div className="font-mono">v1.0.0</div>
       </div>

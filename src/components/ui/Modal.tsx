@@ -36,20 +36,22 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-ink-950/80 backdrop-blur-sm"
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: 'rgba(0,0,0,0.7)' }}
         onClick={onClose}
       />
       {/* Panel */}
       <div className={cn(
-        'relative w-full bg-ink-900 border border-ink-700 rounded-xl shadow-2xl',
-        'animate-fade-in',
+        'glass relative w-full rounded-2xl shadow-2xl animate-in',
         SIZES[size]
       )}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ink-800">
-          <h2 className="font-display text-lg text-ink-100">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{title}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded text-ink-500 hover:text-ink-200 hover:bg-ink-800 transition-colors"
+            className="p-1 rounded hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--muted)' }}
+            aria-label="Kapat"
           >
             <X size={16} />
           </button>

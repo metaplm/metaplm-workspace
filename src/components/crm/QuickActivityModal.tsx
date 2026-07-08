@@ -128,7 +128,7 @@ export function QuickActivityModal({
 
           <div className="flex gap-3">
             <button className="btn-ghost flex-1 text-sm" onClick={onClose}>Vazgeç</button>
-            <button className="btn-primary flex-1 text-sm flex items-center justify-center gap-1.5" disabled={saving} onClick={save}>
+            <button className="btn-primary flex-1 text-sm flex items-center justify-center gap-1.5" disabled={saving || !notes.trim()} onClick={save}>
               {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
               {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>

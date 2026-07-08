@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Filter, DownloadCloud, BarChart3, Activity, TrendingUp } from "lucide-react";
 import { downloadCSV } from "@/lib/export";
+import { formatCurrency } from "@/lib/utils";
+import { TYPE_LABELS, STAGE_LABELS } from "@/components/crm/constants";
 
 interface ActivityRecord {
   id: string;
@@ -86,7 +88,7 @@ export default function CRMReportsPage() {
   }, [deals, dealFilters]);
 
   const conversionRate = activities.length ? ((activities.filter(a => a.deal).length / activities.length) * 100).toFixed(1) : "0";
-  const avgDealSize = filteredDeals.length ? (filteredDeals.reduce((s, d) => s + d.amount, 0) / filteredDeals.length).toFixed(0) : "0";
+  const avgDealSize = filteredDeals.length ? filteredDeals.reduce((s, d) => s + d.amount, 0) / filteredDeals.length : 0;
 
   const exportActivities = () => {
     downloadCSV(
@@ -122,32 +124,32 @@ export default function CRMReportsPage() {
     <div className="p-8 space-y-6 animate-in">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">CRM Reports</h1>
-          <p className="text-sm" style={{ color: "var(--muted)" }}>Filter activities & deals, export CSV snapshots</p>
+          <h1 className="text-xl font-semibold text-white">CRM Raporları</h1>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>Aktivite ve fırsatları filtreleyin, CSV olarak dışa aktarın</p>
         </div>
         <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
-          <span className="flex items-center gap-1"><Activity size={14} /> {filteredActivities.length} activities</span>
-          <span className="flex items-center gap-1"><TrendingUp size={14} /> {filteredDeals.length} deals</span>
+          <span className="flex items-center gap-1"><Activity size={14} /> {filteredActivities.length} aktivite</span>
+          <span className="flex items-center gap-1"><TrendingUp size={14} /> {filteredDeals.length} fırsat</span>
         </div>
       </header>
 
-      <section className="grid grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[{
-          label: "Conversion Rate",
+          label: "Dönüşüm Oranı",
           value: `${conversionRate}%`,
-          sub: `${activities.filter(a => a.deal).length}/${activities.length} linked`,
+          sub: `${activities.filter(a => a.deal).length}/${activities.length} bağlı`,
         }, {
-          label: "Open Deals",
+          label: "Açık Fırsatlar",
           value: filteredDeals.filter(d => !["WON", "LOST"].includes(d.stage)).length,
-          sub: "active pipeline",
+          sub: "aktif pipeline",
         }, {
-          label: "Won Deals",
+          label: "Kazanılan Fırsatlar",
           value: filteredDeals.filter(d => d.stage === "WON").length,
-          sub: "in date range",
+          sub: "tarih aralığında",
         }, {
-          label: "Avg Deal Size",
-          value: `₺${avgDealSize.toLocaleString()}`,
-          sub: "filtered set",
+          label: "Ort. Fırsat Tutarı",
+          value: formatCurrency(avgDealSize, "TRY"),
+          sub: "filtrelenmiş küme",
         }].map(card => (
           <div key={card.label} className="glass rounded-xl p-4">
             <div className="text-xs" style={{ color: "var(--muted)" }}>{card.label}</div>
@@ -157,42 +159,42 @@ export default function CRMReportsPage() {
         ))}
       </section>
 
-      <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-7 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 space-y-4">
           <div className="glass rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-white">
-                <Filter size={14} /> Activity Filters
+                <Filter size={14} /> Aktivite Filtreleri
               </div>
               <button className="btn-primary text-xs flex items-center gap-1" onClick={exportActivities} disabled={loading || !filteredActivities.length}>
-                <DownloadCloud size={14} /> Export CSV
+                <DownloadCloud size={14} /> CSV İndir
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div>
-                <label style={{ color: "var(--muted)" }}>From</label>
+                <label style={{ color: "var(--muted)" }}>Başlangıç</label>
                 <input type="date" value={activityFilters.dates.start} onChange={e => setActivityFilters(f => ({ ...f, dates: { ...f.dates, start: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>To</label>
+                <label style={{ color: "var(--muted)" }}>Bitiş</label>
                 <input type="date" value={activityFilters.dates.end} onChange={e => setActivityFilters(f => ({ ...f, dates: { ...f.dates, end: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Type</label>
+                <label style={{ color: "var(--muted)" }}>Tür</label>
                 <select value={activityFilters.type} onChange={e => setActivityFilters(f => ({ ...f, type: e.target.value }))}>
-                  {TYPE_OPTIONS.map(option => <option key={option}>{option}</option>)}
+                  {TYPE_OPTIONS.map(option => <option key={option} value={option}>{option === "ALL" ? "Tümü" : TYPE_LABELS[option] ?? option}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Company</label>
-                <input type="text" placeholder="Search" value={activityFilters.company} onChange={e => setActivityFilters(f => ({ ...f, company: e.target.value }))} />
+                <label style={{ color: "var(--muted)" }}>Şirket</label>
+                <input type="text" placeholder="Ara" value={activityFilters.company} onChange={e => setActivityFilters(f => ({ ...f, company: e.target.value }))} />
               </div>
               <div>
                 <label style={{ color: "var(--muted)" }}>Pipeline?</label>
                 <select value={activityFilters.hasDeal} onChange={e => setActivityFilters(f => ({ ...f, hasDeal: e.target.value as typeof f.hasDeal }))}>
-                  <option value="all">All</option>
-                  <option value="linked">Linked to Deal</option>
-                  <option value="unlinked">No Deal</option>
+                  <option value="all">Tümü</option>
+                  <option value="linked">Fırsata Bağlı</option>
+                  <option value="unlinked">Fırsatı Yok</option>
                 </select>
               </div>
             </div>
@@ -201,26 +203,26 @@ export default function CRMReportsPage() {
           <div className="glass rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div>
-                <h3 className="text-sm font-semibold text-white">Activity Log ({filteredActivities.length})</h3>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Filtered dataset</p>
+                <h3 className="text-sm font-semibold text-white">Aktivite Kaydı ({filteredActivities.length})</h3>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>Filtrelenmiş veri</p>
               </div>
             </div>
             <div className="max-h-[360px] overflow-auto text-xs">
               <table className="w-full">
                 <thead style={{ background: "rgba(255,255,255,0.02)", color: "var(--muted)" }}>
                   <tr>
-                    <th className="text-left py-2 px-4">Date</th>
-                    <th className="text-left py-2 px-4">Type</th>
-                    <th className="text-left py-2 px-4">Company</th>
-                    <th className="text-left py-2 px-4">Contact</th>
-                    <th className="text-left py-2 px-4">Linked Deal</th>
+                    <th className="text-left py-2 px-4">Tarih</th>
+                    <th className="text-left py-2 px-4">Tür</th>
+                    <th className="text-left py-2 px-4">Şirket</th>
+                    <th className="text-left py-2 px-4">Kişi</th>
+                    <th className="text-left py-2 px-4">Bağlı Fırsat</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredActivities.map(activity => (
                     <tr key={activity.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td className="py-2 px-4 text-white">{formatDate(activity.createdAt)}</td>
-                      <td className="py-2 px-4">{activity.type}</td>
+                      <td className="py-2 px-4">{TYPE_LABELS[activity.type] ?? activity.type}</td>
                       <td className="py-2 px-4">{activity.company?.name ?? "-"}</td>
                       <td className="py-2 px-4">{activity.contacts?.length ? activity.contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ") : "-"}</td>
                       <td className="py-2 px-4">{activity.deal?.title ?? "-"}</td>
@@ -228,7 +230,7 @@ export default function CRMReportsPage() {
                   ))}
                   {!filteredActivities.length && !loading && (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center" style={{ color: "var(--muted)" }}>No records for this filter.</td>
+                      <td colSpan={5} className="py-6 text-center" style={{ color: "var(--muted)" }}>Bu filtre için kayıt yok.</td>
                     </tr>
                   )}
                 </tbody>
@@ -237,37 +239,37 @@ export default function CRMReportsPage() {
           </div>
         </div>
 
-        <div className="col-span-5 space-y-4">
+        <div className="lg:col-span-5 space-y-4">
           <div className="glass rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-white">
-                <BarChart3 size={14} /> Deal Filters
+                <BarChart3 size={14} /> Fırsat Filtreleri
               </div>
               <button className="btn-primary text-xs flex items-center gap-1" onClick={exportDeals} disabled={loading || !filteredDeals.length}>
-                <DownloadCloud size={14} /> Export CSV
+                <DownloadCloud size={14} /> CSV İndir
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
-                <label style={{ color: "var(--muted)" }}>From</label>
+                <label style={{ color: "var(--muted)" }}>Başlangıç</label>
                 <input type="date" value={dealFilters.dates.start} onChange={e => setDealFilters(f => ({ ...f, dates: { ...f.dates, start: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>To</label>
+                <label style={{ color: "var(--muted)" }}>Bitiş</label>
                 <input type="date" value={dealFilters.dates.end} onChange={e => setDealFilters(f => ({ ...f, dates: { ...f.dates, end: e.target.value } }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Stage</label>
+                <label style={{ color: "var(--muted)" }}>Aşama</label>
                 <select value={dealFilters.stage} onChange={e => setDealFilters(f => ({ ...f, stage: e.target.value }))}>
-                  {STAGE_OPTIONS.map(stage => <option key={stage}>{stage}</option>)}
+                  {STAGE_OPTIONS.map(stage => <option key={stage} value={stage}>{stage === "ALL" ? "Tümü" : STAGE_LABELS[stage] ?? stage}</option>)}
                 </select>
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Company</label>
-                <input type="text" placeholder="Search" value={dealFilters.company} onChange={e => setDealFilters(f => ({ ...f, company: e.target.value }))} />
+                <label style={{ color: "var(--muted)" }}>Şirket</label>
+                <input type="text" placeholder="Ara" value={dealFilters.company} onChange={e => setDealFilters(f => ({ ...f, company: e.target.value }))} />
               </div>
               <div>
-                <label style={{ color: "var(--muted)" }}>Min Amount (₺)</label>
+                <label style={{ color: "var(--muted)" }}>Min. Tutar (₺)</label>
                 <input type="number" min={0} value={dealFilters.minAmount} onChange={e => setDealFilters(f => ({ ...f, minAmount: e.target.value }))} />
               </div>
             </div>
@@ -276,19 +278,19 @@ export default function CRMReportsPage() {
           <div className="glass rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
               <div>
-                <h3 className="text-sm font-semibold text-white">Deals ({filteredDeals.length})</h3>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Filtered dataset</p>
+                <h3 className="text-sm font-semibold text-white">Fırsatlar ({filteredDeals.length})</h3>
+                <p className="text-xs" style={{ color: "var(--muted)" }}>Filtrelenmiş veri</p>
               </div>
             </div>
             <div className="max-h-[360px] overflow-auto text-xs">
               <table className="w-full">
                 <thead style={{ background: "rgba(255,255,255,0.02)", color: "var(--muted)" }}>
                   <tr>
-                    <th className="text-left py-2 px-4">Created</th>
-                    <th className="text-left py-2 px-4">Title</th>
-                    <th className="text-left py-2 px-4">Company</th>
-                    <th className="text-left py-2 px-4">Stage</th>
-                    <th className="text-left py-2 px-4">Amount</th>
+                    <th className="text-left py-2 px-4">Oluşturma</th>
+                    <th className="text-left py-2 px-4">Başlık</th>
+                    <th className="text-left py-2 px-4">Şirket</th>
+                    <th className="text-left py-2 px-4">Aşama</th>
+                    <th className="text-left py-2 px-4">Tutar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -297,13 +299,13 @@ export default function CRMReportsPage() {
                       <td className="py-2 px-4 text-white">{formatDate(deal.createdAt)}</td>
                       <td className="py-2 px-4">{deal.title}</td>
                       <td className="py-2 px-4">{deal.company?.name ?? "-"}</td>
-                      <td className="py-2 px-4">{deal.stage}</td>
-                      <td className="py-2 px-4 font-mono text-white">₺{deal.amount.toLocaleString()}</td>
+                      <td className="py-2 px-4">{STAGE_LABELS[deal.stage] ?? deal.stage}</td>
+                      <td className="py-2 px-4 font-mono text-white">{formatCurrency(deal.amount, deal.currency || "TRY")}</td>
                     </tr>
                   ))}
                   {!filteredDeals.length && !loading && (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center" style={{ color: "var(--muted)" }}>No deals for this filter.</td>
+                      <td colSpan={5} className="py-6 text-center" style={{ color: "var(--muted)" }}>Bu filtre için fırsat yok.</td>
                     </tr>
                   )}
                 </tbody>
@@ -324,7 +326,7 @@ function defaultRange(): DateRange {
 }
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString();
+  return new Date(date).toLocaleDateString("tr-TR");
 }
 
 function formatISO(date: Date) {
