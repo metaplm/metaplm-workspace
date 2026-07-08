@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X, FolderKanban, Send, Download } from "lucide-react";
+import { LayoutDashboard, Users, Clock, DollarSign, Building2, TrendingUp, FileText, Receipt, Activity, BarChart3, SunMoon, Menu, X, FolderKanban } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
@@ -21,8 +21,6 @@ const nav = [
   { label: "Finans", href: null, divider: true },
   { label: "Genel Bakış", href: "/finance", icon: DollarSign },
   { label: "Faturalar", href: "/finance/invoices", icon: FileText },
-  { label: "e-Fatura Giden", href: "/finance/efatura/giden", icon: Send },
-  { label: "e-Fatura Gelen", href: "/finance/efatura/gelen", icon: Download },
   { label: "Giderler", href: "/finance/expenses", icon: Receipt },
   { label: "Raporlar", href: "/finance/reports", icon: BarChart3 },
 ];
