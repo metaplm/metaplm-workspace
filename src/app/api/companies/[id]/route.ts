@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { CompanySchema } from "@/lib/schemas";
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
   const company = await prisma.company.findUnique({
@@ -30,7 +31,11 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const body = await req.json();
-  const company = await prisma.company.update({ where: { id: params.id }, data: body });
+  const parsed = CompanySchema.partial().safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+  const company = await prisma.company.update({ where: { id: params.id }, data: parsed.data });
   return NextResponse.json(company);
 }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// PUT is the only writer of relational fields (companyId/dealId/etc) — the caller
+// (activities page) always sends the full record, since any field omitted here is reset to null.
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const body = await req.json();
   const contactIds: string[] = body.contactIds || [];
@@ -15,6 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       companyId: body.companyId || null,
       contacts: { set: contactIds.map(id => ({ id })) },
       rootActivityId: body.rootActivityId || null,
+      dealId: body.dealId || null,
     },
     include: { company: true, contacts: true, deal: true, rootActivity: { include: { company: true } } },
   });

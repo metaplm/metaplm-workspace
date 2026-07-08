@@ -1,6 +1,6 @@
 
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, TrendingUp, X, DollarSign, Calendar, Pencil, Trash2 } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -35,6 +35,8 @@ export default function DealsPage() {
   const [saving, setSaving] = useState(false);
   const [filterStage, setFilterStage] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const highlightHandled = useRef(false);
 
   const load = () => {
     setLoading(true);
@@ -44,6 +46,21 @@ export default function DealsPage() {
     ]).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (highlightHandled.current || deals.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const highlight = params.get("highlight");
+    if (highlight && deals.some(d => d.id === highlight)) {
+      highlightHandled.current = true;
+      setHighlightedId(highlight);
+      setTimeout(() => document.getElementById(`deal-${highlight}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+      setTimeout(() => setHighlightedId(null), 2000);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("highlight");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [deals]);
 
   const save = async () => {
     setSaving(true);
@@ -143,7 +160,12 @@ export default function DealsPage() {
       {/* Deals List */}
       <div className="space-y-3">
         {filtered.map(deal => (
-          <div key={deal.id} className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group">
+          <div
+            key={deal.id}
+            id={`deal-${deal.id}`}
+            className="glass rounded-xl p-4 glass-hover flex items-center gap-4 relative group transition-all"
+            style={highlightedId === deal.id ? { boxShadow: "0 0 0 2px #6366f1", background: "rgba(99,102,241,0.08)" } : undefined}
+          >
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
               <button onClick={() => openEdit(deal)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
               <button onClick={() => setShowDeleteConfirm(deal.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>

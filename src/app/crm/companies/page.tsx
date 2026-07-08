@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Search, Globe, Linkedin, Building2, Sparkles, X, Loader2, Pencil, Trash2, Users, GitBranch, FileText, Clock, Briefcase, ChevronRight, Calendar, LayoutGrid, List } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { STAGE_LABELS, STAGE_COLORS, INVOICE_STATUS_COLORS, TYPE_LABELS, TYPE_COLORS, STATUS_LABELS, STATUS_COLORS, formatMoney } from "@/components/crm/constants";
+import { QuickActivityModal } from "@/components/crm/QuickActivityModal";
+import { useToast } from "@/components/ui/Toaster";
 
 interface Company {
   id: string;
@@ -12,6 +15,9 @@ interface Company {
   description?: string;
   linkedinUrl?: string;
   nda?: boolean;
+  status: string;
+  lastActivityAt?: string | null;
+  nextActionAt?: string | null;
   contacts: Array<{ id: string }>;
   deals: Array<{ id: string; amount: number; stage: string }>;
 }
@@ -24,6 +30,7 @@ interface CompanyDetail {
   description?: string;
   linkedinUrl?: string;
   nda?: boolean;
+  status: string;
   contacts: Array<{ id: string; firstName: string; lastName: string; title?: string; email?: string; phone?: string }>;
   deals: Array<{
     id: string; title: string; amount: number; currency: string; stage: string; expectedCloseDate?: string;
@@ -45,40 +52,34 @@ interface CompanyDetail {
   }>;
 }
 
-const EMPTY = { name: "", website: "", logoUrl: "", description: "", linkedinUrl: "", nda: false };
+const EMPTY = { name: "", website: "", logoUrl: "", description: "", linkedinUrl: "", nda: false, status: "LEAD" };
 
-function formatMoney(amount: number, currency = "₺"): string {
-  if (amount >= 1_000_000) return `${currency}${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${currency}${(amount / 1_000).toFixed(1)}K`;
-  if (amount > 0) return `${currency}${amount.toLocaleString("tr-TR")}`;
-  return "—";
+function isStale(company: Pick<Company, "lastActivityAt" | "status">): boolean {
+  if (company.status === "INACTIVE") return false;
+  if (!company.lastActivityAt) return true;
+  const days = (Date.now() - new Date(company.lastActivityAt).getTime()) / 86400000;
+  return days > 30;
 }
-
-const STAGE_LABELS: Record<string, string> = {
-  LEAD: "Lead", QUALIFIED: "Nitelikli", PROPOSAL: "Teklif",
-  NEGOTIATION: "Müzakere", WON: "Kazanıldı", LOST: "Kaybedildi"
-};
-const STAGE_COLORS: Record<string, string> = {
-  LEAD: "#64748b", QUALIFIED: "#0ea5e9", PROPOSAL: "#f59e0b",
-  NEGOTIATION: "#8b5cf6", WON: "#22c55e", LOST: "#ef4444"
-};
-const INVOICE_STATUS_COLORS: Record<string, string> = {
-  DRAFT: "#64748b", PENDING: "#f59e0b", PAID: "#22c55e", OVERDUE: "#ef4444", CANCELLED: "#94a3b8"
-};
-const TYPE_LABELS: Record<string, string> = { MEETING: "Toplantı", CALL: "Telefon", EMAIL: "E-posta", NOTE: "Not" };
-const TYPE_COLORS: Record<string, string> = { MEETING: "#6366f1", CALL: "#0ea5e9", EMAIL: "#f59e0b", NOTE: "#94a3b8" };
 
 type Tab = "activities" | "contacts" | "deals" | "projects" | "timesheet";
 
-function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onClose: () => void; onEdit: () => void }) {
+function CompanyDrawer({ companyId, onClose, onEdit, onChanged }: { companyId: string; onClose: () => void; onEdit: () => void; onChanged?: () => void }) {
   const [detail, setDetail] = useState<CompanyDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("activities");
+  const [showQuickActivity, setShowQuickActivity] = useState(false);
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true);
     fetch(`/api/companies/${companyId}`).then(r => r.json()).then(setDetail).finally(() => setLoading(false));
-  }, [companyId]);
+  };
+  useEffect(load, [companyId]);
+
+  const changeStatus = async (status: string) => {
+    setDetail(d => d ? { ...d, status } : d);
+    await fetch(`/api/companies/${companyId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) });
+    onChanged?.();
+  };
 
   const totalHours = detail?.timeEntries.reduce((s, e) => s + e.hours, 0) ?? 0;
   const billableHours = detail?.timeEntries.filter(e => e.billable).reduce((s, e) => s + e.hours, 0) ?? 0;
@@ -115,6 +116,16 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-semibold" style={{ color: "var(--text)" }}>{detail?.name ?? "..."}</h2>
                 {detail?.nda && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.15)", color: "#dc2626" }}>NDA</span>}
+                {detail && (
+                  <select
+                    value={detail.status}
+                    onChange={e => changeStatus(e.target.value)}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full font-medium border-0"
+                    style={{ background: `${STATUS_COLORS[detail.status]}22`, color: STATUS_COLORS[detail.status] }}
+                  >
+                    {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                )}
               </div>
               <div className="flex items-center gap-3 mt-0.5">
                 {detail?.website && <a href={detail.website} target="_blank" className="text-xs flex items-center gap-1" style={{ color: "var(--muted)" }}><Globe size={10} />{detail.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</a>}
@@ -123,10 +134,21 @@ function CompanyDrawer({ companyId, onClose, onEdit }: { companyId: string; onCl
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {detail && <button onClick={() => setShowQuickActivity(true)} className="btn-ghost text-xs">+ Aktivite</button>}
             <button onClick={onEdit} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
             <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><X size={16} /></button>
           </div>
         </div>
+
+        {showQuickActivity && detail && (
+          <QuickActivityModal
+            companyId={detail.id}
+            companyName={detail.name}
+            dealOptions={detail.deals}
+            onClose={() => setShowQuickActivity(false)}
+            onSaved={() => { setShowQuickActivity(false); load(); onChanged?.(); }}
+          />
+        )}
 
         {loading ? (
           <div className="flex-1 p-6"><LoadingRows /></div>
@@ -326,6 +348,7 @@ function Empty({ label }: { label: string }) {
 }
 
 export default function CompaniesPage() {
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -338,12 +361,24 @@ export default function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [view, setView] = useState<"card" | "list">("card");
+  const [filterStatus, setFilterStatus] = useState<string>("");
 
   const load = () => {
     setLoading(true);
     fetch("/api/companies").then(r => r.json()).then(setCompanies).finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get("open");
+    if (open) {
+      setSelectedCompanyId(open);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("open");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const scrape = async () => {
     if (!scrapeUrl) return;
@@ -358,11 +393,11 @@ export default function CompaniesPage() {
   const save = async () => {
     setSaving(true);
     try {
-      if (editingId) {
-        await fetch(`/api/companies/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      } else {
-        await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      }
+      const res = editingId
+        ? await fetch(`/api/companies/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+        : await fetch("/api/companies", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      if (!res.ok) { toast("Kaydedilemedi, alanları kontrol edin", "error"); return; }
+      toast(editingId ? "Şirket güncellendi" : "Şirket eklendi", "success");
       setShowModal(false);
       setForm({ ...EMPTY });
       setEditingId(null);
@@ -373,6 +408,7 @@ export default function CompaniesPage() {
 
   const deleteCompany = async (id: string) => {
     await fetch(`/api/companies/${id}`, { method: "DELETE" });
+    toast("Şirket silindi", "success");
     setShowDeleteConfirm(null);
     setSelectedCompanyId(null);
     load();
@@ -386,6 +422,7 @@ export default function CompaniesPage() {
       description: company.description || "",
       linkedinUrl: company.linkedinUrl || "",
       nda: company.nda || false,
+      status: company.status || "LEAD",
     });
     setEditingId(company.id);
     setShowModal(true);
@@ -397,7 +434,9 @@ export default function CompaniesPage() {
     setShowModal(true);
   };
 
-  const filtered = companies.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = companies
+    .filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    .filter(c => !filterStatus || c.status === filterStatus);
 
   const selectedCompany = selectedCompanyId ? companies.find(c => c.id === selectedCompanyId) : null;
 
@@ -438,6 +477,38 @@ export default function CompaniesPage() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setFilterStatus("")}
+          className="text-xs px-3 py-1.5 rounded-full border transition-all"
+          style={{
+            background: !filterStatus ? "var(--surface2)" : "transparent",
+            color: !filterStatus ? "var(--text)" : "var(--muted)",
+            borderColor: !filterStatus ? "var(--accent2)" : "var(--border)",
+          }}
+        >
+          Tümü <span className="ml-1 opacity-70">{companies.length}</span>
+        </button>
+        {Object.entries(STATUS_LABELS).map(([value, label]) => {
+          const count = companies.filter(c => c.status === value).length;
+          const active = filterStatus === value;
+          return (
+            <button
+              key={value}
+              onClick={() => setFilterStatus(active ? "" : value)}
+              className="text-xs px-3 py-1.5 rounded-full border transition-all"
+              style={{
+                background: active ? `${STATUS_COLORS[value]}22` : "transparent",
+                color: active ? STATUS_COLORS[value] : "var(--muted)",
+                borderColor: active ? STATUS_COLORS[value] : "var(--border)",
+              }}
+            >
+              {label} <span className="ml-1 opacity-70">{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {view === "card" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
@@ -456,11 +527,19 @@ export default function CompaniesPage() {
                   {c.logoUrl ? <img src={c.logoUrl} alt={c.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /> : <Building2 size={18} style={{ color: "var(--muted)" }} />}
                 </div>
                 <div className="flex-1 min-w-0 pr-12">
-                  <div className="font-medium text-white text-sm truncate" title={c.name}>{c.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="font-medium text-white text-sm truncate" title={c.name}>{c.name}</div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0" style={{ background: `${STATUS_COLORS[c.status]}22`, color: STATUS_COLORS[c.status] }}>{STATUS_LABELS[c.status]}</span>
+                  </div>
                   {c.website && <div className="text-xs mt-0.5 flex items-center gap-1 truncate" style={{ color: "var(--muted)" }}><Globe size={10} />{c.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</div>}
                 </div>
               </div>
               {c.description && <p className="text-xs mb-3 line-clamp-2 break-words" style={{ color: "var(--muted)" }}>{c.description}</p>}
+              {isStale(c) && (
+                <div className="text-[11px] mb-2 px-2 py-1 rounded-lg inline-flex items-center gap-1" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}>
+                  {c.lastActivityAt ? "30+ gün temas yok" : "Hiç temas yok"}
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs pt-3" style={{ borderTop: "1px solid var(--border)" }}>
                 <div className="flex items-center gap-2">
                   <span style={{ color: "var(--muted)" }}>{c.contacts.length} kişi</span>
@@ -482,7 +561,7 @@ export default function CompaniesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Şirket", "Website", "Kişiler", "Pipeline", ""].map(h => (
+                {["Şirket", "Durum", "Son Aktivite", "Sonraki Adım", "Website", "Kişiler", "Pipeline", ""].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--muted)" }}>{h}</th>
                 ))}
               </tr>
@@ -510,6 +589,19 @@ export default function CompaniesPage() {
                         {c.nda && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.12)", color: "#dc2626" }}>NDA</span>}
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: `${STATUS_COLORS[c.status]}22`, color: STATUS_COLORS[c.status] }}>{STATUS_LABELS[c.status]}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.lastActivityAt
+                      ? <span className="text-xs" style={{ color: isStale(c) ? "#f59e0b" : "var(--muted)" }}>{new Date(c.lastActivityAt).toLocaleDateString("tr-TR")}</span>
+                      : <span className="text-xs" style={{ color: isStale(c) ? "#f59e0b" : "var(--muted)", opacity: isStale(c) ? 1 : 0.4 }}>{isStale(c) ? "Hiç temas yok" : "—"}</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {c.nextActionAt
+                      ? <span className="text-xs" style={{ color: "var(--muted)" }}>{new Date(c.nextActionAt).toLocaleDateString("tr-TR")}</span>
+                      : <span style={{ color: "var(--muted)", opacity: 0.4 }} className="text-xs">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     {c.website
@@ -562,6 +654,7 @@ export default function CompaniesPage() {
               const c = companies.find(x => x.id === selectedCompanyId);
               if (c) { openEdit(c); }
             }}
+            onChanged={load}
           />
         </ModalPortal>
       )}
@@ -594,6 +687,12 @@ export default function CompaniesPage() {
               <div>
                 <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Açıklama</label>
                 <textarea rows={2} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="text-sm resize-none" placeholder="Şirket ne yapar?" />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Durum</label>
+                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="text-sm">
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
               </div>
               <div className="flex items-center gap-3 pt-2">
                 <label className="text-xs font-medium" style={{ color: "var(--muted)" }}>Gizlilik Anlaşması</label>

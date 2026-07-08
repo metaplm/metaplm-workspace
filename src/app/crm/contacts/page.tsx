@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { LoadingRows } from "@/components/ui/LoadingRows";
 import { Plus, Search, Linkedin, Mail, Phone, Building2, X, User, Pencil, Trash2, Sparkles, AlertCircle, LayoutGrid, List } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { ContactDrawer } from "@/components/crm/ContactDrawer";
+import { useToast } from "@/components/ui/Toaster";
 
 interface Contact {
   id: string;
@@ -19,6 +21,7 @@ interface Company { id: string; name: string; }
 const EMPTY = { firstName: "", lastName: "", title: "", email: "", phone: "", linkedinUrl: "", companyId: "" };
 
 export default function ContactsPage() {
+  const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [search, setSearch] = useState("");
@@ -33,6 +36,7 @@ export default function ContactsPage() {
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState("");
   const [view, setView] = useState<"card" | "list">("card");
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -43,16 +47,26 @@ export default function ContactsPage() {
   };
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get("open");
+    if (open) {
+      setSelectedContactId(open);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("open");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
+
   const save = async () => {
     setSaving(true);
-    const data = { ...form };
-    if (!data.companyId) delete (data as any).companyId;
+    const data = { ...form, companyId: form.companyId || null };
     try {
-      if (editingId) {
-        await fetch(`/api/contacts/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      } else {
-        await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
-      }
+      const res = editingId
+        ? await fetch(`/api/contacts/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+        : await fetch("/api/contacts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (!res.ok) { toast("Kaydedilemedi, alanları kontrol edin", "error"); return; }
+      toast(editingId ? "Kişi güncellendi" : "Kişi eklendi", "success");
       setShowModal(false);
       setForm({ ...EMPTY });
       setEditingId(null);
@@ -62,6 +76,7 @@ export default function ContactsPage() {
 
   const deleteContact = async (id: string) => {
     await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+    toast("Kişi silindi", "success");
     setShowDeleteConfirm(null);
     load();
   };
@@ -139,18 +154,18 @@ export default function ContactsPage() {
     <div className="p-8 space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Contacts</h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{contacts.length} contacts</p>
+          <h1 className="text-xl font-semibold text-white">Kişiler</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--muted)" }}>{contacts.length} kişi</p>
         </div>
         <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
-          <Plus size={15} /> Add Contact
+          <Plus size={15} /> Kişi Ekle
         </button>
       </div>
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1" style={{ maxWidth: 320 }}>
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
-          <input placeholder="Search contacts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
+          <input placeholder="Kişi ara..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 text-sm" />
         </div>
         <div className="flex rounded-lg overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }}>
           <button
@@ -175,10 +190,10 @@ export default function ContactsPage() {
       {view === "card" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (
-            <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group">
+            <div key={c.id} className="glass rounded-xl p-5 glass-hover relative group cursor-pointer" onClick={() => setSelectedContactId(c.id)}>
               <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
-                <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
+                <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="p-1.5 rounded-lg hover:bg-white/10" style={{ color: "var(--muted)" }}><Pencil size={14} /></button>
+                <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(c.id); }} className="p-1.5 rounded-lg hover:bg-red-500/20 hover:text-red-400" style={{ color: "var(--muted)" }}><Trash2 size={14} /></button>
               </div>
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white" }}>
@@ -196,10 +211,10 @@ export default function ContactsPage() {
                 </div>
               </div>
               <div className="space-y-1.5 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-                {c.email && <a href={`mailto:${c.email}`} className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Mail size={11} />{c.email}</a>}
+                {c.email && <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Mail size={11} />{c.email}</a>}
                 {c.phone && <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}><Phone size={11} />{c.phone}</div>}
                 {c.linkedinUrl && (
-                  <a href={c.linkedinUrl} target="_blank" className="flex items-center gap-2 text-xs" style={{ color: "var(--accent2)" }}>
+                  <a href={c.linkedinUrl} target="_blank" onClick={e => e.stopPropagation()} className="flex items-center gap-2 text-xs" style={{ color: "var(--accent2)" }}>
                     <Linkedin size={11} />LinkedIn
                   </a>
                 )}
@@ -212,7 +227,7 @@ export default function ContactsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Kişi", "Şirket", "Email", "Telefon", ""].map(h => (
+                {["Kişi", "Şirket", "E-posta", "Telefon", ""].map(h => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-medium" style={{ color: "var(--muted)" }}>{h}</th>
                 ))}
               </tr>
@@ -221,8 +236,9 @@ export default function ContactsPage() {
               {filtered.map((c, i) => (
                 <tr
                   key={c.id}
-                  className="group transition-colors"
+                  className="group transition-colors cursor-pointer"
                   style={{ borderTop: i === 0 ? undefined : "1px solid var(--border)" }}
+                  onClick={() => setSelectedContactId(c.id)}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--surface2)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
@@ -244,7 +260,7 @@ export default function ContactsPage() {
                   </td>
                   <td className="px-4 py-3">
                     {c.email
-                      ? <a href={`mailto:${c.email}`} className="text-xs" style={{ color: "var(--muted)" }}>{c.email}</a>
+                      ? <a href={`mailto:${c.email}`} onClick={e => e.stopPropagation()} className="text-xs" style={{ color: "var(--muted)" }}>{c.email}</a>
                       : <span style={{ color: "var(--muted)", opacity: 0.4 }}>—</span>}
                   </td>
                   <td className="px-4 py-3">
@@ -254,9 +270,9 @@ export default function ContactsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Linkedin size={13} /></a>}
-                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Pencil size={13} /></button>
-                      <button onClick={() => setShowDeleteConfirm(c.id)} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Trash2 size={13} /></button>
+                      {c.linkedinUrl && <a href={c.linkedinUrl} target="_blank" onClick={e => e.stopPropagation()} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Linkedin size={13} /></a>}
+                      <button onClick={e => { e.stopPropagation(); openEdit(c); }} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Pencil size={13} /></button>
+                      <button onClick={e => { e.stopPropagation(); setShowDeleteConfirm(c.id); }} className="p-1.5 rounded-lg" style={{ color: "var(--muted)" }}><Trash2 size={13} /></button>
                     </div>
                   </td>
                 </tr>
@@ -270,16 +286,27 @@ export default function ContactsPage() {
       {!loading && filtered.length === 0 && (
         <div className="glass rounded-xl p-12 text-center">
           <User size={32} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
-          <div className="text-sm text-white mb-1">No contacts yet</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>Add contacts and link them to companies</div>
+          <div className="text-sm text-white mb-1">Henüz kişi yok</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>Kişi ekleyin ve şirketlerle ilişkilendirin</div>
         </div>
+      )}
+
+      {selectedContactId && (
+        <ContactDrawer
+          contactId={selectedContactId}
+          onClose={() => setSelectedContactId(null)}
+          onEdit={() => {
+            const c = contacts.find(x => x.id === selectedContactId);
+            if (c) openEdit(c);
+          }}
+        />
       )}
 
       {showModal && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="glass rounded-2xl w-full max-w-md p-6 animate-in max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold text-white">{editingId ? "Edit Contact" : "Add Contact"}</h2>
+              <h2 className="text-base font-semibold text-white">{editingId ? "Kişi Düzenle" : "Kişi Ekle"}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white"><X size={18} /></button>
             </div>
 
@@ -355,31 +382,31 @@ export default function ContactsPage() {
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>First Name *</label>
-                  <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="text-sm" placeholder="John" />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Ad *</label>
+                  <input value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="text-sm" placeholder="Ahmet" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Last Name *</label>
-                  <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="text-sm" placeholder="Doe" />
+                  <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Soyad *</label>
+                  <input value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="text-sm" placeholder="Yılmaz" />
                 </div>
               </div>
-              {[["Title", "title", "CEO"], ["Email", "email", "john@acme.com"], ["Phone", "phone", "+1 555 000 0000"], ["LinkedIn URL", "linkedinUrl", "https://linkedin.com/in/..."]].map(([label, key, ph]) => (
+              {[["Unvan", "title", "CEO"], ["E-posta", "email", "ahmet@acme.com"], ["Telefon", "phone", "+90 555 000 0000"], ["LinkedIn URL", "linkedinUrl", "https://linkedin.com/in/..."]].map(([label, key, ph]) => (
                 <div key={key}>
                   <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>{label}</label>
                   <input value={form[key as keyof typeof form]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} className="text-sm" placeholder={ph} />
                 </div>
               ))}
               <div>
-                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Company</label>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Şirket</label>
                 <select value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))} className="text-sm">
-                  <option value="">— No Company —</option>
+                  <option value="">— Şirket Yok —</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.firstName || !form.lastName}>{saving ? "Saving..." : (editingId ? "Update" : "Add Contact")}</button>
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowModal(false)}>Vazgeç</button>
+              <button className="btn-primary flex-1 text-sm" onClick={save} disabled={saving || !form.firstName || !form.lastName}>{saving ? "Kaydediliyor..." : (editingId ? "Güncelle" : "Kişi Ekle")}</button>
             </div>
           </div>
         </div>
@@ -388,11 +415,11 @@ export default function ContactsPage() {
       {showDeleteConfirm && (<ModalPortal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
           <div className="glass rounded-2xl w-full max-w-sm p-6 animate-in max-h-[90vh] overflow-y-auto">
-            <h2 className="text-base font-semibold text-white mb-2">Delete Contact?</h2>
-            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>This action cannot be undone.</p>
+            <h2 className="text-base font-semibold text-white mb-2">Kişi Silinsin mi?</h2>
+            <p className="text-sm mb-5" style={{ color: "var(--muted)" }}>Bu işlem geri alınamaz.</p>
             <div className="flex gap-3">
-              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Cancel</button>
-              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteContact(showDeleteConfirm)}>Delete</button>
+              <button className="btn-ghost flex-1 text-sm" onClick={() => setShowDeleteConfirm(null)}>Vazgeç</button>
+              <button className="btn-primary flex-1 text-sm" style={{ background: "#ef4444" }} onClick={() => deleteContact(showDeleteConfirm)}>Sil</button>
             </div>
           </div>
         </div>

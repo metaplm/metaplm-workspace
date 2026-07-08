@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LoadingRows } from "@/components/ui/LoadingRows";
-import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Filter, Calendar, RefreshCw, ArrowRight, Pencil, Trash2, GitBranch, ChevronDown, ChevronRight, ChevronsUpDown, X, ChevronDown as ChevronDownSm, Check, Search, Sparkles, Loader2, CheckCircle2, Clock, AlarmClock, CalendarClock, Send } from "lucide-react";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { useToast } from "@/components/ui/Toaster";
 
 interface Activity {
   id: string;
@@ -24,6 +25,7 @@ interface Activity {
 
 interface Company { id: string; name: string; }
 interface Contact { id: string; firstName: string; lastName: string; companyId?: string | null; }
+interface Deal { id: string; title: string; companyId?: string | null; }
 
 const TYPE_OPTIONS = [
   { value: "MEETING", label: "Toplantı", accent: "#6366f1", bg: "rgba(99,102,241,0.15)" },
@@ -158,7 +160,7 @@ function FilterCombobox({
         onClick={() => open ? (setOpen(false), setSearch("")) : openDropdown()}
         className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs transition-all"
         style={{
-          minWidth: 160,
+          minWidth: 150,
           border: `1px solid ${open || value ? "var(--accent2)" : "var(--border)"}`,
           background: value ? "rgba(2,103,160,0.08)" : "var(--surface)",
           color: value ? "var(--text)" : "var(--muted)",
@@ -197,7 +199,40 @@ const EMPTY_ACTIVITY = {
   contactIds: [] as string[],
   parentId: "",
   rootActivityId: "",
+  dealId: "",
 };
+
+/* ---------- date helpers ---------- */
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function dayDiffFromToday(dateStr: string) {
+  const today = startOfDay(new Date()).getTime();
+  const day = startOfDay(new Date(dateStr)).getTime();
+  return Math.round((day - today) / 86400000);
+}
+
+function feedGroupLabel(dateStr: string) {
+  const diff = dayDiffFromToday(dateStr);
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (diff >= 0) return "Bugün";
+  if (diff === -1) return "Dün";
+  if (diff > -7) return "Bu Hafta";
+  if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) return "Bu Ay";
+  return d.toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
+}
+
+function relativeDayLabel(dateStr: string) {
+  const diff = dayDiffFromToday(dateStr);
+  if (diff === 0) return "Bugün";
+  if (diff === 1) return "Yarın";
+  if (diff === -1) return "Dün";
+  if (diff < 0) return `${-diff} gün gecikti`;
+  return `${diff} gün sonra`;
+}
 
 function ActivityCard({
   activity,
@@ -313,7 +348,14 @@ function ActivityCard({
             <span className="px-1.5 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.15)", color: "#818cf8" }}>📌 {activity.source}</span>
           )}
           {activity.nextActionDate && (
-            <span className="flex items-center gap-1"><Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString("tr-TR")}</span>
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full"
+              style={dayDiffFromToday(activity.nextActionDate) < 0
+                ? { background: "rgba(239,68,68,0.12)", color: "#f87171" }
+                : { background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}
+            >
+              <Calendar size={11} /> {new Date(activity.nextActionDate).toLocaleDateString("tr-TR")} · {relativeDayLabel(activity.nextActionDate)}
+            </span>
           )}
         </div>
       </div>
@@ -339,13 +381,26 @@ function ActivityCard({
   );
 }
 
+interface QuickPreview {
+  type: Activity["type"];
+  notes: string;
+  createdAt: string;
+  nextActionDate: string;
+  source: string;
+  companyId: string;
+  contactIds: string[];
+}
+
 export default function ActivitiesPage() {
+  const { toast } = useToast();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [filterType, setFilterType] = useState<string>("ALL");
   const [filterCompanyId, setFilterCompanyId] = useState<string>("");
   const [filterContactId, setFilterContactId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -362,6 +417,15 @@ export default function ActivitiesPage() {
   const [aiText, setAiText] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiFilledFields, setAiFilledFields] = useState<string[]>([]);
+  const deepLinkHandled = useRef(false);
+
+  // Quick composer state
+  const [quickText, setQuickText] = useState("");
+  const [quickParsing, setQuickParsing] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickPreview, setQuickPreview] = useState<QuickPreview | null>(null);
+  const [quickError, setQuickError] = useState("");
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -369,6 +433,7 @@ export default function ActivitiesPage() {
       fetch("/api/activities").then(r => r.json()).then(setActivities),
       fetch("/api/companies").then(r => r.json()).then(setCompanies),
       fetch("/api/contacts").then(r => r.json()).then(setContacts),
+      fetch("/api/deals").then(r => r.json()).then(setDeals),
     ]).finally(() => setLoading(false));
   };
 
@@ -379,6 +444,22 @@ export default function ActivitiesPage() {
     const collect = (list: Activity[]) => { list.forEach(a => { flat.push(a); if (a.children) collect(a.children); }); };
     collect(activities);
     return flat;
+  }, [activities]);
+
+  useEffect(() => {
+    if (deepLinkHandled.current || activities.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get("open");
+    if (open) {
+      const root = activities.find(a => a.id === open);
+      if (root) {
+        setViewActivity(root);
+        deepLinkHandled.current = true;
+        const url = new URL(window.location.href);
+        url.searchParams.delete("open");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
   }, [activities]);
 
   // IDs of root activities that have children (for collapse all/expand all)
@@ -402,18 +483,58 @@ export default function ActivitiesPage() {
     });
   };
 
+  const matchesSearch = (a: Activity, q: string): boolean => {
+    const hay = [
+      a.notes,
+      a.company?.name,
+      a.source,
+      a.deal?.title,
+      ...(a.contacts?.map(c => `${c.firstName} ${c.lastName}`) ?? []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    if (hay.includes(q)) return true;
+    return (a.children ?? []).some(c => matchesSearch(c, q));
+  };
+
   const filteredActivities = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return activities.filter(a => {
-      if (filterType !== "ALL" && a.type !== filterType) return false;
+      if (filterType !== "ALL" && a.type !== filterType && !(a.children ?? []).some(c => c.type === filterType)) return false;
       if (filterCompanyId && a.company?.id !== filterCompanyId) return false;
-      if (filterContactId && !a.contacts?.some(c => c.id === filterContactId)) return false;
+      if (filterContactId && !a.contacts?.some(c => c.id === filterContactId) && !(a.children ?? []).some(ch => ch.contacts?.some(c => c.id === filterContactId))) return false;
+      if (q && !matchesSearch(a, q)) return false;
       return true;
     });
-  }, [activities, filterType, filterCompanyId, filterContactId]);
+  }, [activities, filterType, filterCompanyId, filterContactId, searchQuery]);
+
+  // Feed grouped by date bucket (activities already sorted desc by createdAt)
+  const groupedFeed = useMemo(() => {
+    const groups: { label: string; items: Activity[] }[] = [];
+    for (const a of filteredActivities) {
+      const label = feedGroupLabel(a.createdAt);
+      const last = groups[groups.length - 1];
+      if (last && last.label === label) last.items.push(a);
+      else groups.push({ label, items: [a] });
+    }
+    return groups;
+  }, [filteredActivities]);
+
+  // Next-action buckets for the follow-up panel
+  const actionBuckets = useMemo(() => {
+    const withAction = allActivitiesFlat
+      .filter(a => a.nextActionDate)
+      .sort((x, y) => new Date(x.nextActionDate!).getTime() - new Date(y.nextActionDate!).getTime());
+    const overdue = withAction.filter(a => dayDiffFromToday(a.nextActionDate!) < 0);
+    const today = withAction.filter(a => dayDiffFromToday(a.nextActionDate!) === 0);
+    const upcoming = withAction.filter(a => {
+      const d = dayDiffFromToday(a.nextActionDate!);
+      return d > 0 && d <= 14;
+    });
+    const later = withAction.filter(a => dayDiffFromToday(a.nextActionDate!) > 14);
+    return { overdue, today, upcoming, later };
+  }, [allActivitiesFlat]);
 
   const totalConverted = allActivitiesFlat.filter(a => a.deal).length;
   const conversionRate = allActivitiesFlat.length ? (totalConverted / allActivitiesFlat.length) * 100 : 0;
-  const upcomingNextActions = allActivitiesFlat.filter(a => a.nextActionDate && new Date(a.nextActionDate) >= new Date()).length;
 
   const contactOptions = contacts;
 
@@ -466,6 +587,128 @@ export default function ActivitiesPage() {
     [filterContactOptions]
   );
 
+  /* ---------- quick composer ---------- */
+
+  const handleQuickParse = async () => {
+    if (!quickText.trim() || quickParsing) return;
+    setQuickParsing(true);
+    setQuickError("");
+    try {
+      const res = await fetch("/api/activities/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: quickText,
+          companies: companies.map(c => ({ id: c.id, name: c.name })),
+          contacts: contacts.map(c => ({ id: c.id, firstName: c.firstName, lastName: c.lastName })),
+        }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setQuickError(typeof data.error === "string" ? data.error : "Metin analiz edilemedi");
+        return;
+      }
+      setQuickPreview({
+        type: data.type || "NOTE",
+        notes: data.notes || quickText.trim(),
+        createdAt: data.createdAt || new Date().toISOString().slice(0, 10),
+        nextActionDate: data.nextActionDate || "",
+        source: data.source || "",
+        companyId: data.companyId || "",
+        contactIds: data.contactIds || [],
+      });
+    } catch {
+      setQuickError("Analiz sırasında hata oluştu");
+    } finally {
+      setQuickParsing(false);
+    }
+  };
+
+  const handleQuickSave = async () => {
+    if (!quickPreview || quickSaving) return;
+    setQuickSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        type: quickPreview.type,
+        notes: quickPreview.notes,
+        createdAt: quickPreview.createdAt || undefined,
+        nextActionDate: quickPreview.nextActionDate || null,
+        contactIds: quickPreview.contactIds,
+      };
+      if (quickPreview.companyId) payload.companyId = quickPreview.companyId;
+      if (quickPreview.source) payload.source = quickPreview.source;
+      const res = await fetch("/api/activities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        setQuickError("Kaydedilemedi, alanları kontrol edin");
+        return;
+      }
+      setQuickText("");
+      setQuickPreview(null);
+      setQuickError("");
+      load();
+    } finally {
+      setQuickSaving(false);
+    }
+  };
+
+  const openQuickInModal = () => {
+    if (!quickPreview) return;
+    setForm({
+      ...EMPTY_ACTIVITY,
+      type: quickPreview.type,
+      notes: quickPreview.notes,
+      createdAt: quickPreview.createdAt,
+      nextActionDate: quickPreview.nextActionDate,
+      source: quickPreview.source,
+      companyId: quickPreview.companyId,
+      contactIds: quickPreview.contactIds,
+    });
+    setEditingId(null);
+    setShowModal(true);
+    setQuickPreview(null);
+    setQuickText("");
+  };
+
+  /* ---------- follow-up panel actions ---------- */
+
+  const updateNextAction = async (a: Activity, nextActionDate: string | null) => {
+    setActionBusyId(a.id);
+    try {
+      // PUT resets omitted relational fields, so send the full record back
+      await fetch(`/api/activities/${a.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: a.type,
+          notes: a.notes ?? "",
+          nextActionDate,
+          createdAt: a.createdAt,
+          source: a.source || null,
+          companyId: a.company?.id || null,
+          contactIds: a.contacts?.map(c => c.id) || [],
+          rootActivityId: a.rootActivityId || null,
+          dealId: a.deal?.id || null,
+        }),
+      });
+      load();
+    } finally {
+      setActionBusyId(null);
+    }
+  };
+
+  const completeAction = (a: Activity) => updateNextAction(a, null);
+
+  const postponeAction = (a: Activity) => {
+    const base = a.nextActionDate ? new Date(a.nextActionDate) : new Date();
+    const from = base.getTime() < Date.now() ? new Date() : base;
+    const next = new Date(from.getTime() + 7 * 86400000);
+    return updateNextAction(a, next.toISOString().slice(0, 10));
+  };
+
   const handleAiFill = async () => {
     if (!aiText.trim()) return;
     setAiLoading(true);
@@ -514,21 +757,22 @@ export default function ActivitiesPage() {
     if (form.parentId) payload.parentId = form.parentId;
     if (form.source) payload.source = form.source;
     if (form.rootActivityId) payload.rootActivityId = form.rootActivityId;
+    if (form.dealId) payload.dealId = form.dealId;
 
     try {
-      if (editingId) {
-        await fetch(`/api/activities/${editingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch("/api/activities", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+      const res = editingId
+        ? await fetch(`/api/activities/${editingId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/activities", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) { toast("Kaydedilemedi, alanları kontrol edin", "error"); return; }
+      toast(editingId ? "Aktivite güncellendi" : "Aktivite kaydedildi", "success");
       setShowModal(false);
       setForm({ ...EMPTY_ACTIVITY });
       setEditingId(null);
@@ -544,6 +788,7 @@ export default function ActivitiesPage() {
 
   const deleteActivity = async (id: string) => {
     await fetch(`/api/activities/${id}`, { method: "DELETE" });
+    toast("Aktivite silindi", "success");
     setShowDeleteConfirm(null);
     load();
   };
@@ -559,6 +804,7 @@ export default function ActivitiesPage() {
       contactIds: activity.contacts?.map(c => c.id) || [],
       parentId: activity.parentId || "",
       rootActivityId: activity.rootActivityId || "",
+      dealId: activity.deal?.id || "",
     });
     setEditingId(activity.id);
     setShowModal(true);
@@ -608,7 +854,59 @@ export default function ActivitiesPage() {
     load();
   };
 
-  const hasActiveFilters = filterType !== "ALL" || filterCompanyId || filterContactId;
+  const hasActiveFilters = filterType !== "ALL" || filterCompanyId || filterContactId || searchQuery.trim();
+
+  const previewCompany = quickPreview?.companyId ? companies.find(c => c.id === quickPreview.companyId) : null;
+  const previewContacts = quickPreview ? contacts.filter(c => quickPreview.contactIds.includes(c.id)) : [];
+
+  const renderActionItem = (a: Activity, tone: "overdue" | "today" | "upcoming") => {
+    const typeMeta = TYPE_OPTIONS.find(t => t.value === a.type);
+    const toneColor = tone === "overdue" ? "#f87171" : tone === "today" ? "#f59e0b" : "#818cf8";
+    const busy = actionBusyId === a.id;
+    return (
+      <div
+        key={a.id}
+        className="rounded-xl p-3 space-y-1.5 cursor-pointer transition-colors hover:bg-white/[0.03]"
+        style={{ background: "var(--surface2)", border: "1px solid var(--border)" }}
+        onClick={() => setViewActivity(a)}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ color: typeMeta?.accent, background: typeMeta?.bg }}>{typeMeta?.label}</span>
+          {a.company && <span className="text-xs font-medium truncate" style={{ color: "var(--text)" }}>{a.company.name}</span>}
+        </div>
+        {a.notes && (
+          <p className="text-[11px] leading-snug" style={{ color: "var(--muted)" }}>
+            {a.notes.length > 90 ? a.notes.slice(0, 90) + "…" : a.notes}
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: toneColor }}>
+            <Calendar size={10} /> {relativeDayLabel(a.nextActionDate!)}
+          </span>
+          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <button
+              title="Tamamlandı — takipten kaldır"
+              disabled={busy}
+              onClick={() => completeAction(a)}
+              className="p-1 rounded-md hover:bg-emerald-500/20 transition-colors"
+              style={{ color: "#10b981", opacity: busy ? 0.4 : 1 }}
+            >
+              {busy ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+            </button>
+            <button
+              title="1 hafta ertele"
+              disabled={busy}
+              onClick={() => postponeAction(a)}
+              className="p-1 rounded-md hover:bg-white/10 transition-colors"
+              style={{ color: "var(--muted)", opacity: busy ? 0.4 : 1 }}
+            >
+              <Clock size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="p-8 space-y-6 animate-in">
@@ -622,7 +920,7 @@ export default function ActivitiesPage() {
             <RefreshCw size={14} /> Yenile
           </button>
           <button className="btn-primary flex items-center gap-2 text-sm" onClick={openAdd}>
-            <Plus size={15} /> Aktivite Ekle
+            <Plus size={15} /> Detaylı Ekle
           </button>
         </div>
       </div>
@@ -630,7 +928,7 @@ export default function ActivitiesPage() {
       <div className="grid grid-cols-4 gap-4">
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Toplam Aktivite</div>
-          <div className="text-2xl font-semibold text-white">{activities.length}</div>
+          <div className="text-2xl font-semibold text-white">{allActivitiesFlat.length}</div>
         </div>
         <div className="glass rounded-xl p-4">
           <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Pipeline&apos;a Dönüşen</div>
@@ -641,106 +939,282 @@ export default function ActivitiesPage() {
           <div className="text-2xl font-semibold text-white">{conversionRate.toFixed(0)}%</div>
         </div>
         <div className="glass rounded-xl p-4">
-          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Yaklaşan Aksiyon</div>
-          <div className="text-2xl font-semibold text-white">{upcomingNextActions}</div>
+          <div className="text-xs mb-1" style={{ color: "var(--muted)" }}>Gecikmiş Aksiyon</div>
+          <div className="text-2xl font-semibold" style={{ color: actionBuckets.overdue.length > 0 ? "#f87171" : "#fff" }}>
+            {actionBuckets.overdue.length}
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="glass rounded-xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="text-xs uppercase tracking-wide flex items-center gap-1.5" style={{ color: "var(--muted)" }}>
-            <Filter size={12} /> Filtrele
-          </div>
-          <div className="flex items-center gap-2">
-            {hasActiveFilters && (
-              <button
-                className="text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition-colors"
-                style={{ color: "var(--muted)" }}
-                onClick={() => { setFilterType("ALL"); setFilterCompanyId(""); setFilterContactId(""); }}
-              >
-                Temizle
-              </button>
+      <div className="grid grid-cols-3 gap-6 items-start">
+        {/* ===== Main column: composer + filters + feed ===== */}
+        <div className="col-span-2 space-y-4">
+
+          {/* Quick composer */}
+          <div className="glass rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} style={{ color: "#818cf8" }} />
+              <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Hızlı Kayıt</span>
+              <span className="text-[11px] ml-auto" style={{ color: "var(--muted)" }}>Serbest metin yaz — tür, şirket, kişi ve tarihler otomatik çıkarılır</span>
+            </div>
+
+            {!quickPreview && (
+              <div className="flex gap-2">
+                <textarea
+                  rows={2}
+                  value={quickText}
+                  onChange={e => setQuickText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleQuickParse(); }}
+                  placeholder="Örn: Bugün Acme'den Ahmet ile telefonda görüştük, teklifi beğendiler, salı günü tekrar arayacağım..."
+                  className="flex-1 text-sm resize-none"
+                />
+                <button
+                  onClick={handleQuickParse}
+                  disabled={quickParsing || !quickText.trim()}
+                  className="btn-primary flex items-center gap-1.5 text-xs px-4 self-stretch"
+                  style={{ opacity: (!quickText.trim() || quickParsing) ? 0.5 : 1 }}
+                >
+                  {quickParsing ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  {quickParsing ? "Analiz..." : "Analiz Et"}
+                </button>
+              </div>
             )}
-            {parentIds.length > 0 && (
-              <button
-                className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all hover:bg-white/5"
-                style={{ color: "var(--muted)", borderColor: "rgba(255,255,255,0.08)" }}
-                onClick={toggleCollapseAll}
-              >
-                <ChevronsUpDown size={12} />
-                {allCollapsed ? "Tümünü Aç" : "Tümünü Kapat"}
-              </button>
+
+            {quickPreview && (
+              <div className="rounded-xl p-3 space-y-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                {/* type selector */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {TYPE_OPTIONS.map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => setQuickPreview(p => p ? { ...p, type: option.value } : p)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all"
+                      style={{
+                        background: quickPreview.type === option.value ? option.bg : "transparent",
+                        color: quickPreview.type === option.value ? option.accent : "var(--muted)",
+                        borderColor: quickPreview.type === option.value ? option.accent : "var(--border)",
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                  <span className="text-[11px] ml-auto flex items-center gap-1" style={{ color: "var(--muted)" }}>
+                    <Calendar size={11} /> {new Date(quickPreview.createdAt).toLocaleDateString("tr-TR")}
+                  </span>
+                </div>
+
+                <textarea
+                  rows={3}
+                  value={quickPreview.notes}
+                  onChange={e => setQuickPreview(p => p ? { ...p, notes: e.target.value } : p)}
+                  className="text-sm w-full resize-none"
+                />
+
+                <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                  <span
+                    className="px-2 py-0.5 rounded-full font-medium"
+                    style={previewCompany
+                      ? { background: "rgba(2,103,160,0.12)", color: "var(--accent2)", border: "1px solid rgba(2,103,160,0.25)" }
+                      : { background: "rgba(148,163,184,0.1)", color: "var(--muted)", border: "1px dashed var(--border)" }}
+                  >
+                    🏢 {previewCompany ? previewCompany.name : "Şirket eşleşmedi"}
+                  </span>
+                  {previewContacts.map(c => (
+                    <span key={c.id} className="px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(99,102,241,0.12)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.25)" }}>
+                      👤 {c.firstName} {c.lastName}
+                    </span>
+                  ))}
+                  {quickPreview.nextActionDate && (
+                    <span className="px-2 py-0.5 rounded-full font-medium flex items-center gap-1" style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)" }}>
+                      <CalendarClock size={11} /> Takip: {new Date(quickPreview.nextActionDate).toLocaleDateString("tr-TR")}
+                    </span>
+                  )}
+                  {quickPreview.source && (
+                    <span className="px-2 py-0.5 rounded-full font-medium" style={{ background: "rgba(99,102,241,0.1)", color: "#a5b4fc" }}>📌 {quickPreview.source}</span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button className="btn-primary text-xs flex items-center gap-1.5 px-4" disabled={quickSaving} onClick={handleQuickSave}>
+                    {quickSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    {quickSaving ? "Kaydediliyor..." : "Kaydet"}
+                  </button>
+                  <button className="btn-ghost text-xs" onClick={openQuickInModal}>Detayları Düzenle</button>
+                  <button className="btn-ghost text-xs ml-auto" style={{ color: "var(--muted)" }} onClick={() => setQuickPreview(null)}>Vazgeç</button>
+                </div>
+              </div>
+            )}
+
+            {quickError && (
+              <div className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>{quickError}</div>
+            )}
+          </div>
+
+          {/* Filters + search */}
+          <div className="glass rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Notlarda, şirketlerde, kişilerde ara..."
+                  className="pl-8 text-sm w-full"
+                />
+              </div>
+              {hasActiveFilters && (
+                <button
+                  className="text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                  style={{ color: "var(--muted)" }}
+                  onClick={() => { setFilterType("ALL"); setFilterCompanyId(""); setFilterContactId(""); setSearchQuery(""); }}
+                >
+                  Temizle
+                </button>
+              )}
+              {parentIds.length > 0 && (
+                <button
+                  className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-all hover:bg-white/5 shrink-0"
+                  style={{ color: "var(--muted)", borderColor: "rgba(255,255,255,0.08)" }}
+                  onClick={toggleCollapseAll}
+                >
+                  <ChevronsUpDown size={12} />
+                  {allCollapsed ? "Tümünü Aç" : "Tümünü Kapat"}
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs flex items-center gap-1.5 mr-1" style={{ color: "var(--muted)" }}>
+                <Filter size={12} />
+              </span>
+              {(["ALL", ...TYPE_OPTIONS.map(o => o.value)] as string[]).map(type => {
+                const data = TYPE_OPTIONS.find(o => o.value === type);
+                const active = filterType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className="text-xs px-3 py-1.5 rounded-full border transition-all"
+                    style={{
+                      background: active ? data?.bg || "rgba(255,255,255,0.1)" : "transparent",
+                      color: active ? data?.accent || "var(--text)" : "var(--muted)",
+                      borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "var(--border)",
+                    }}
+                  >
+                    {type === "ALL" ? "Tümü" : data?.label}
+                  </button>
+                );
+              })}
+
+              <div className="w-px self-stretch mx-1" style={{ background: "var(--border)" }} />
+
+              <FilterCombobox
+                value={filterCompanyId}
+                onChange={id => { setFilterCompanyId(id); setFilterContactId(""); }}
+                options={companyFilterOptions}
+                placeholder="🏢 Şirket"
+                allLabel="Tüm şirketler"
+              />
+              <FilterCombobox
+                value={filterContactId}
+                onChange={setFilterContactId}
+                options={contactFilterOptions}
+                placeholder="👤 Kişi"
+                allLabel="Tüm kişiler"
+              />
+            </div>
+          </div>
+
+          {/* Feed grouped by date */}
+          {groupedFeed.map(group => (
+            <div key={group.label} className="space-y-3">
+              <div className="flex items-center gap-3 pt-1">
+                <span className="text-[11px] font-semibold uppercase tracking-wider shrink-0" style={{ color: "var(--muted)" }}>{group.label}</span>
+                <div className="h-px flex-1" style={{ background: "var(--border)" }} />
+                <span className="text-[10px] shrink-0" style={{ color: "var(--muted)" }}>{group.items.length}</span>
+              </div>
+              {group.items.map(activity => (
+                <ActivityCard
+                  key={activity.id}
+                  activity={activity}
+                  onEdit={openEdit}
+                  onDelete={id => setShowDeleteConfirm(id)}
+                  onConvert={openConvertModal}
+                  onAddChild={openAddChild}
+                  onView={setViewActivity}
+                  collapsed={collapsedIds.has(activity.id)}
+                  onToggleCollapse={toggleCollapse}
+                />
+              ))}
+            </div>
+          ))}
+
+          {loading && <LoadingRows />}
+          {!loading && filteredActivities.length === 0 && (
+            <div className="glass rounded-xl p-12 text-center">
+              <Plus size={28} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
+              <div className="text-sm text-white mb-1">Aktivite bulunamadı</div>
+              <div className="text-xs" style={{ color: "var(--muted)" }}>
+                {hasActiveFilters ? "Filtreleri temizleyerek tüm aktiviteleri görebilirsiniz." : "Yukarıdaki hızlı kayıt kutusuna yazarak takibi başlat"}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ===== Right column: follow-up panel ===== */}
+        <div className="space-y-4">
+          <div className="glass rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-1.5">
+              <AlarmClock size={14} style={{ color: "#f59e0b" }} />
+              <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>Aksiyon Takibi</span>
+              <span className="text-[11px] ml-auto" style={{ color: "var(--muted)" }}>
+                {actionBuckets.overdue.length + actionBuckets.today.length + actionBuckets.upcoming.length + actionBuckets.later.length} açık
+              </span>
+            </div>
+
+            {actionBuckets.overdue.length === 0 && actionBuckets.today.length === 0 && actionBuckets.upcoming.length === 0 && actionBuckets.later.length === 0 && (
+              <div className="text-center py-6">
+                <CheckCircle2 size={22} className="mx-auto mb-2" style={{ color: "#10b981" }} />
+                <div className="text-xs" style={{ color: "var(--muted)" }}>Açık aksiyon yok — hepsi tamam 🎉</div>
+              </div>
+            )}
+
+            {actionBuckets.overdue.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "#f87171" }}>
+                  Gecikmiş <span className="px-1.5 rounded-full" style={{ background: "rgba(239,68,68,0.15)" }}>{actionBuckets.overdue.length}</span>
+                </div>
+                {actionBuckets.overdue.map(a => renderActionItem(a, "overdue"))}
+              </div>
+            )}
+
+            {actionBuckets.today.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "#f59e0b" }}>
+                  Bugün <span className="px-1.5 rounded-full" style={{ background: "rgba(245,158,11,0.15)" }}>{actionBuckets.today.length}</span>
+                </div>
+                {actionBuckets.today.map(a => renderActionItem(a, "today"))}
+              </div>
+            )}
+
+            {actionBuckets.upcoming.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "#818cf8" }}>
+                  Yaklaşan (14 gün) <span className="px-1.5 rounded-full" style={{ background: "rgba(99,102,241,0.15)" }}>{actionBuckets.upcoming.length}</span>
+                </div>
+                {actionBuckets.upcoming.map(a => renderActionItem(a, "upcoming"))}
+              </div>
+            )}
+
+            {actionBuckets.later.length > 0 && (
+              <div className="text-[11px] text-center pt-1" style={{ color: "var(--muted)" }}>
+                + {actionBuckets.later.length} aksiyon daha ileri tarihte
+              </div>
             )}
           </div>
         </div>
-
-        {/* Type pills + comboboxes — single row */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {(["ALL", ...TYPE_OPTIONS.map(o => o.value)] as string[]).map(type => {
-            const data = TYPE_OPTIONS.find(o => o.value === type);
-            const active = filterType === type;
-            return (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className="text-xs px-3 py-1.5 rounded-full border transition-all"
-                style={{
-                  background: active ? data?.bg || "rgba(255,255,255,0.1)" : "transparent",
-                  color: active ? data?.accent || "var(--text)" : "var(--muted)",
-                  borderColor: active ? (data?.accent || "rgba(255,255,255,0.1)") : "var(--border)",
-                }}
-              >
-                {type === "ALL" ? "Tümü" : data?.label}
-              </button>
-            );
-          })}
-
-          <div className="w-px self-stretch mx-1" style={{ background: "var(--border)" }} />
-
-          <FilterCombobox
-            value={filterCompanyId}
-            onChange={id => { setFilterCompanyId(id); setFilterContactId(""); }}
-            options={companyFilterOptions}
-            placeholder="🏢 Şirket"
-            allLabel="Tüm şirketler"
-          />
-          <FilterCombobox
-            value={filterContactId}
-            onChange={setFilterContactId}
-            options={contactFilterOptions}
-            placeholder="👤 Kişi"
-            allLabel="Tüm kişiler"
-          />
-        </div>
       </div>
-
-      <div className="space-y-3">
-        {filteredActivities.map(activity => (
-          <ActivityCard
-            key={activity.id}
-            activity={activity}
-            onEdit={openEdit}
-            onDelete={id => setShowDeleteConfirm(id)}
-            onConvert={openConvertModal}
-            onAddChild={openAddChild}
-            onView={setViewActivity}
-            collapsed={collapsedIds.has(activity.id)}
-            onToggleCollapse={toggleCollapse}
-          />
-        ))}
-      </div>
-
-      {loading && <LoadingRows />}
-      {!loading && filteredActivities.length === 0 && (
-        <div className="glass rounded-xl p-12 text-center">
-          <Plus size={28} className="mx-auto mb-3" style={{ color: "var(--muted)" }} />
-          <div className="text-sm text-white mb-1">Aktivite bulunamadı</div>
-          <div className="text-xs" style={{ color: "var(--muted)" }}>
-            {hasActiveFilters ? "Filtreleri temizleyerek tüm aktiviteleri görebilirsiniz." : "Toplantı, telefon veya not ekleyerek takibi başlat"}
-          </div>
-        </div>
-      )}
 
       {/* Activity Detail Modal */}
       {viewActivity && (<ModalPortal>
@@ -888,6 +1362,15 @@ export default function ActivitiesPage() {
 
               {/* Footer actions */}
               <div className="px-5 pb-5 flex gap-2 justify-end" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                {viewActivity.nextActionDate && (
+                  <button
+                    className="btn-ghost text-xs flex items-center gap-1.5 mr-auto"
+                    style={{ color: "#10b981" }}
+                    onClick={async () => { const a = viewActivity; setViewActivity(null); await completeAction(a); }}
+                  >
+                    <CheckCircle2 size={12} /> Aksiyonu Tamamla
+                  </button>
+                )}
                 <button className="btn-ghost text-xs flex items-center gap-1.5" onClick={() => { setViewActivity(null); openEdit(viewActivity); }}>
                   <Pencil size={12} /> Düzenle
                 </button>
@@ -1030,13 +1513,25 @@ export default function ActivitiesPage() {
 
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Şirket</label>
-              <select className="text-sm" value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value, contactIds: [] }))}>
+              <select className="text-sm" value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value, contactIds: [], dealId: "" }))}>
                 <option value="">— Seçilmedi —</option>
                 {companies.map(company => (
                   <option key={company.id} value={company.id}>{company.name}</option>
                 ))}
               </select>
             </div>
+
+            {form.companyId && deals.some(d => d.companyId === form.companyId) && (
+              <div>
+                <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Fırsat</label>
+                <select className="text-sm" value={form.dealId} onChange={e => setForm(f => ({ ...f, dealId: e.target.value }))}>
+                  <option value="">— Fırsat yok —</option>
+                  {deals.filter(d => d.companyId === form.companyId).map(d => (
+                    <option key={d.id} value={d.id}>{d.title}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div ref={contactPickerRef} className="relative">
               <label className="text-xs font-medium block mb-1" style={{ color: "var(--muted)" }}>Kişiler</label>

@@ -8,20 +8,29 @@ datasource db {
 }
 
 model Company {
-  id          String    @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   website     String?
   logoUrl     String?
   description String?
   linkedinUrl String?
-  nda         Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  nda         Boolean       @default(false)
+  status      CompanyStatus @default(LEAD)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
   contacts    Contact[]
   activities  Activity[]
   deals       Deal[]
   projects    Project[]
   timeEntries TimeEntry[]
+}
+
+enum CompanyStatus {
+  LEAD
+  PROSPECT
+  ACTIVE
+  PARTNER
+  INACTIVE
 }
 
 model Contact {

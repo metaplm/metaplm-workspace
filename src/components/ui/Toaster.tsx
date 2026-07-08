@@ -22,7 +22,7 @@ export function useToast() {
   return useContext(ToastContext)
 }
 
-export function Toaster() {
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const toast = useCallback((message: string, type: ToastType = 'info') => {
@@ -39,6 +39,7 @@ export function Toaster() {
 
   return (
     <ToastContext.Provider value={{ toast }}>
+      {children}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
         {toasts.map(t => (
           <div
@@ -62,3 +63,6 @@ export function Toaster() {
     </ToastContext.Provider>
   )
 }
+
+// Backward-compatible alias for existing imports
+export const Toaster = ToastProvider

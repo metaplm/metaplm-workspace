@@ -3,6 +3,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/ui/Sidebar";
+import { CommandPalette } from "@/components/ui/CommandPalette";
+import { ToastProvider } from "@/components/ui/Toaster";
 import { usePathname } from "next/navigation";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -17,10 +19,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="flex h-screen overflow-hidden">
-        {!isLoginPage && <Sidebar />}
-        <main className={`flex-1 overflow-y-auto relative ${isLoginPage ? "w-full" : ""} ${!isLoginPage ? "md:ml-0 ml-0" : ""} pb-16 md:pb-0`}>
-          {children}
-        </main>
+        <ToastProvider>
+          {!isLoginPage && <Sidebar />}
+          {!isLoginPage && <CommandPalette />}
+          <main className={`flex-1 overflow-y-auto relative ${isLoginPage ? "w-full" : ""} ${!isLoginPage ? "md:ml-0 ml-0" : ""} pb-16 md:pb-0`}>
+            {children}
+          </main>
+        </ToastProvider>
       </body>
     </html>
   );

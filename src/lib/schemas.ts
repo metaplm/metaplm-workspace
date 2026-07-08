@@ -16,6 +16,7 @@ export const CompanySchema = z.object({
   description: z.string().max(2000).optional().nullable(),
   linkedinUrl: z.string().max(500).optional().nullable(),
   nda: z.boolean().optional(),
+  status: z.enum(['LEAD', 'PROSPECT', 'ACTIVE', 'PARTNER', 'INACTIVE']).optional(),
 })
 
 export const ContactSchema = z.object({
@@ -47,6 +48,7 @@ export const ActivitySchema = z.object({
   contactIds: z.array(z.string().max(100)).max(50).optional(),
   parentId: optionalId,
   rootActivityId: optionalId,
+  dealId: optionalId,
 })
 
 export const ExpenseSchema = z.object({
